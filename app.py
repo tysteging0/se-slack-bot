@@ -290,6 +290,49 @@ def slack_actions():
     return "", 200
 
 
+@app.post("/cron/test")
+def cron_test():
+    """
+    Test endpoint — fetches real tickets for all SEs but sends everything
+    to a single target Slack ID (e.g. the manager). Protected by CRON_SECRET.
+    Usage: POST /cron/test  with header X-Cron-Secret and body {"slack_id": "U02JH87UQQP"}
+    """
+    _verify_cron(request)
+    target_slack_id = (request.get_json(silent=True) or {}).get("slack_id", MANAGER["slack_id"])
+    channel = _dm_channel(target_slack_id)
+
+    for owner_name, cfg in OWNERS.items():
+        try:
+            raw     = fetch_open_tickets(owner_name)
+            tickets = process_tickets(raw)
+
+            _send(channel, [{
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"*🧪 TEST — {owner_name}'s digest ({len(tickets)} tickets)*"}
+            }])
+
+            if not tickets:
+                _send(channel, [{
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"No open tickets for {cfg['first_name']} today."}
+                }])
+                continue
+
+            _sessions[owner_name] = {
+                "tickets":    tickets,
+                "index":      0,
+                "total":      len(tickets),
+                "channel_id": channel,
+            }
+            _send_next_ticket(owner_name)
+
+        except Exception as e:
+            print(f"[ERROR] Test digest failed for {owner_name}: {e}")
+            _send(channel, [{"type": "section", "text": {"type": "mrkdwn", "text": f"❌ Error fetching {owner_name}: {e}"}}])
+
+    return jsonify({"status": "test sent", "target": target_slack_id})
+
+
 @app.post("/cron/digest")
 def cron_digest():
     """
