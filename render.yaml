@@ -1,27 +1,21 @@
 services:
   - type: web
-    name: se-slack-bot
+    name: se-card-game
     runtime: python
-    plan: starter        # upgrade to standard if you need more memory
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT --timeout 30
+    plan: starter
+    buildCommand: npm install -g @salesforce/cli && pip install -r requirements.txt
+    startCommand: echo $SFDX_AUTH_URL | sf org login sfdx-url --sfdx-url-stdin --set-default && gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT --timeout 30
     envVars:
       - key: SLACK_BOT_TOKEN
-        sync: false      # set manually in Render dashboard
+        sync: false
       - key: SLACK_SIGNING_SECRET
         sync: false
       - key: CRON_SECRET
         sync: false
-      - key: SF_USERNAME
+      - key: SFDX_AUTH_URL
         sync: false
-      - key: SF_PASSWORD
-        sync: false
-      - key: SF_SECURITY_TOKEN
-        sync: false
-      - key: SF_DOMAIN
-        value: login     # change to "test" for sandbox
       - key: SESSION_DIR
-        value: /data     # persistent disk mount path
+        value: /data
     disk:
       name: session-state
       mountPath: /data

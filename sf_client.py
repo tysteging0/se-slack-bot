@@ -2,54 +2,59 @@
 """
 se-slack-bot/sf_client.py
 
-Salesforce API client for production use.
-Replaces the sf CLI calls in digest.py and sf_writes.py with
-proper server-side auth using simple-salesforce.
-
-Auth: Username + Password + Security Token
-      (swap for JWT Bearer once Connected App is set up)
-
-Set these environment variables on your server:
-    SF_USERNAME        your Salesforce username
-    SF_PASSWORD        your Salesforce password
-    SF_SECURITY_TOKEN  your Salesforce security token
-                       (Settings → Reset My Security Token)
-    SF_DOMAIN          "login" for production, "test" for sandbox
+Salesforce API client.
+Authenticates using the sf CLI stored credentials (works with SSO).
+The SFDX_AUTH_URL env var is used on Render to restore the session;
+locally it falls back to the already-authenticated sf CLI.
 """
 
-import os
 import json
-from functools import lru_cache
-from simple_salesforce import Salesforce, SalesforceLogin
+import os
+import subprocess
+
+from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceError
+
+SF_ORG = "gusto-prod"
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-@lru_cache(maxsize=1)
+def _get_credentials() -> dict:
+    """
+    Get a live access token + instance URL from the sf CLI.
+    The CLI handles token refresh automatically — no password needed.
+    """
+    result = subprocess.run(
+        ["sf", "org", "display", "--target-org", SF_ORG, "--json"],
+        capture_output=True, text=True
+    )
+    data = json.loads(result.stdout)
+    r    = data["result"]
+    return {
+        "instance_url": r["instanceUrl"],
+        "access_token": r["accessToken"],
+    }
+
+
 def get_client() -> Salesforce:
     """
-    Returns an authenticated Salesforce client.
-    Cached so we reuse the session across requests.
-    Call get_client.cache_clear() if you need to force re-auth.
+    Returns an authenticated Salesforce client using the sf CLI session.
+    Called fresh on each request — sf CLI refreshes the token as needed.
     """
+    creds = _get_credentials()
     return Salesforce(
-        username=os.environ["SF_USERNAME"],
-        password=os.environ["SF_PASSWORD"],
-        security_token=os.environ["SF_SECURITY_TOKEN"],
-        domain=os.environ.get("SF_DOMAIN", "login"),
+        instance_url=creds["instance_url"],
+        session_id=creds["access_token"],
     )
 
 
 # ── Query ─────────────────────────────────────────────────────────────────────
 
 def run_soql(query: str) -> list:
-    """
-    Execute a SOQL query and return records.
-    Drop-in replacement for digest.py's run_soql().
-    """
+    """Execute a SOQL query and return records."""
     try:
-        sf = get_client()
+        sf     = get_client()
         result = sf.query_all(query)
         return result.get("records", [])
     except SalesforceError as e:
@@ -63,13 +68,10 @@ def run_soql(query: str) -> list:
 # ── Record writes ─────────────────────────────────────────────────────────────
 
 def update_record(sobject: str, record_id: str, fields: dict) -> bool:
-    """
-    Update a single Salesforce record.
-    Returns True on success, False on failure.
-    """
+    """Update a single Salesforce record. Returns True on success."""
     try:
-        sf   = get_client()
-        obj  = getattr(sf, sobject)
+        sf  = get_client()
+        obj = getattr(sf, sobject)
         obj.update(record_id, fields)
         return True
     except SalesforceError as e:
@@ -78,10 +80,7 @@ def update_record(sobject: str, record_id: str, fields: dict) -> bool:
 
 
 def insert_record(sobject: str, fields: dict) -> str | None:
-    """
-    Insert a new Salesforce record.
-    Returns the new record Id on success, None on failure.
-    """
+    """Insert a new Salesforce record. Returns the new Id on success."""
     try:
         sf  = get_client()
         obj = getattr(sf, sobject)
@@ -93,9 +92,7 @@ def insert_record(sobject: str, fields: dict) -> str | None:
 
 
 def insert_chatter_post(parent_id: str, body: str) -> bool:
-    """
-    Post a chatter message (FeedItem) to a record.
-    """
+    """Post a chatter message (FeedItem) to a record."""
     record_id = insert_record("FeedItem", {
         "ParentId": parent_id,
         "Body":     body,
