@@ -119,14 +119,14 @@ def block_opening(first_name: str, total: int, index: int, ticket: dict) -> list
     stale    = ticket.get("staleness") or staleness_indicator(ticket.get("days_open", 0))
 
     return [
-        header(f"Good morning {first_name} 👋"),
+        header(f"Afternoon, {first_name} 👋"),
         section(f"You have *{total}* open ticket{'s' if total != 1 else ''} to review today."),
         divider(),
 
         # Ticket card
         section(
             f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}\n\n"
-            f"*📋 {ticket['id']}*\n"
+            f"*📋 <https://gusto.lightning.force.com/lightning/r/Ticket__c/{ticket.get('sf_id', '')}/view|{ticket['id']}>*\n"
             f"🏢  {ticket['account']}\n"
             f"💼  {ticket['opp_name']}  ·  _{ticket['opp_stage']}_\n"
             f"📅  Open {ticket['days_open']} day{'s' if ticket['days_open'] != 1 else ''}"
@@ -170,7 +170,7 @@ def block_one_tap_confirm(first_name: str, total: int, index: int, ticket: dict)
         divider(),
         section(
             f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}\n\n"
-            f"*📋 {ticket['id']}*\n"
+            f"*📋 <https://gusto.lightning.force.com/lightning/r/Ticket__c/{ticket.get('sf_id', '')}/view|{ticket['id']}>*\n"
             f"🏢  {ticket['account']}\n"
             f"💼  {ticket['opp_name']}  ·  _{ticket['opp_stage']}_\n"
             f"📅  Open {ticket['days_open']} day{'s' if ticket['days_open'] != 1 else ''}"

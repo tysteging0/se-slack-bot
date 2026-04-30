@@ -352,7 +352,7 @@ def cron_digest():
                 _send(channel, [{
                     "type": "section",
                     "text": {"type": "mrkdwn",
-                             "text": f"Hey {cfg['first_name']} 👋  No open tickets today — enjoy the rest of the day!"}
+                             "text": f"Afternoon, {cfg['first_name']} 👋  No open tickets today — enjoy the rest of the day!"}
                 }])
                 continue
 
