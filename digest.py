@@ -248,7 +248,7 @@ def fetch_open_tickets(owner_name: str) -> list:
             Opportunity__r.Owner.Name,
             Opportunity__r.Owner.Email,
             Opportunity__r.Anchor_Pay_Date__c,
-            (SELECT CreatedDate, Body FROM Feeds
+            (SELECT Id, CreatedDate, Body FROM Feeds
              WHERE Type = 'TextPost'
              ORDER BY CreatedDate DESC
              LIMIT 1)
@@ -283,18 +283,45 @@ def _parse_sf_date(date_str: str) -> Optional[date]:
         return None
 
 
+def fetch_latest_comments(feed_item_ids: list) -> dict:
+    """
+    Given a list of FeedItem IDs, return the most recent thread reply
+    body for each. Returns {feed_item_id: comment_body}.
+    """
+    if not feed_item_ids:
+        return {}
+    id_list = ", ".join(f"'{i}'" for i in feed_item_ids)
+    records = run_soql(f"""
+        SELECT FeedItemId, CommentBody, CreatedDate
+        FROM FeedComment
+        WHERE FeedItemId IN ({id_list})
+        ORDER BY CreatedDate DESC
+    """)
+    # Keep only the most recent comment per FeedItem
+    seen = {}
+    for r in records:
+        fid = r.get("FeedItemId")
+        if fid and fid not in seen:
+            seen[fid] = (r.get("CommentBody") or "").strip()
+    return seen
+
+
 def _parse_feeds(feeds_result: Optional[dict]) -> tuple:
     """
-    Extract (last_chatter_date, last_chatter_body) from the Feeds subquery.
-    Returns (None, "") if no posts exist.
+    Extract (last_chatter_date, last_chatter_body, feed_item_id) from the Feeds subquery.
+    Returns (None, "", None) if no posts exist.
     """
     if not feeds_result:
-        return None, ""
+        return None, "", None
     records = feeds_result.get("records") or []
     if not records:
-        return None, ""
+        return None, "", None
     r = records[0]
-    return _parse_sf_date(r.get("CreatedDate", "")), (r.get("Body") or "").strip()
+    return (
+        _parse_sf_date(r.get("CreatedDate", "")),
+        (r.get("Body") or "").strip(),
+        r.get("Id"),
+    )
 
 
 def should_include_today(ticket: dict, reviewed_today: set) -> bool:
@@ -384,13 +411,24 @@ def process_tickets(raw_records: list) -> list:
     tickets  = []
     skipped  = []
 
+    # First pass — parse records and collect FeedItem IDs for comment lookup
+    parsed_records = []
+    feed_item_ids  = []
     for r in raw_records:
         opp  = r.get("Opportunity__r") or {}
         acct = r.get("Account__r") or {}
         created = r.get("CreatedDate", "")
         record_type = (r.get("RecordType") or {}).get("Name") or ""
         d_open = days_open(created)
-        lcd, lcb = _parse_feeds(r.get("Feeds"))
+        lcd, lcb, feed_item_id = _parse_feeds(r.get("Feeds"))
+        parsed_records.append((r, opp, acct, created, record_type, d_open, lcd, lcb, feed_item_id))
+        if feed_item_id:
+            feed_item_ids.append(feed_item_id)
+
+    # Bulk fetch most recent thread reply for all FeedItems in one query
+    comments_by_feed_item = fetch_latest_comments(feed_item_ids)
+
+    for r, opp, acct, created, record_type, d_open, lcd, lcb, feed_item_id in parsed_records:
 
         # One-tap confirm: ticket resurfaced after skip window but chatter is
         # still recent enough to show as context (CHATTER_SKIP_DAYS < age ≤ ONE_TAP_DAYS)
@@ -423,6 +461,7 @@ def process_tickets(raw_records: list) -> list:
             "anchor_pay_date":    opp.get("Anchor_Pay_Date__c") or None,
             "last_chatter_date":  lcd,
             "last_chatter_note":  lcb,
+            "last_chatter_reply": comments_by_feed_item.get(feed_item_id, ""),
             "days_since_chatter": days_since_chatter,
             "use_one_tap":        use_one_tap,
             # Premium flag — update to match your actual record type or field

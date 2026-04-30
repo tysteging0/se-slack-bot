@@ -105,6 +105,30 @@ SAMPLE_TOTAL  = 8
 SAMPLE_INDEX  = 1
 
 
+def _chatter_section(ticket: dict) -> list:
+    """
+    Returns 0–1 blocks showing the most recent chatter activity on a ticket.
+    Shows the latest post and, if a thread reply exists, the latest reply too.
+    Returns an empty list if no chatter exists.
+    """
+    note  = (ticket.get("last_chatter_note") or "").strip()
+    reply = (ticket.get("last_chatter_reply") or "").strip()
+    lcd   = ticket.get("last_chatter_date")
+
+    if not note:
+        return []
+
+    from datetime import date
+    days = (date.today() - lcd).days if lcd else 0
+    ago  = "today" if days == 0 else "yesterday" if days == 1 else f"{days}d ago"
+
+    lines = [f"🗒️  *Last chatter ({ago}):*", f"> {note[:200]}{'…' if len(note) > 200 else ''}"]
+    if reply:
+        lines.append(f"> ↩  _{reply[:200]}{'…' if len(reply) > 200 else ''}_")
+
+    return [section("\n".join(lines))]
+
+
 # ── Templates ─────────────────────────────────────────────────────────────────
 
 def block_opening(first_name: str, total: int, index: int, ticket: dict) -> list:
@@ -134,6 +158,7 @@ def block_opening(first_name: str, total: int, index: int, ticket: dict) -> list
             f"·  ⚓  APD: {anchor}  "
             f"·  💰  {format_mrr(ticket.get('opp_amount', 0))}"
         ),
+        *_chatter_section(ticket),
         divider(),
 
         section("Have you connected with the requester on this?"),
