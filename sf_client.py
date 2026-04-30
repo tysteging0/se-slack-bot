@@ -3,49 +3,65 @@
 se-slack-bot/sf_client.py
 
 Salesforce API client.
-Authenticates using the sf CLI stored credentials (works with SSO).
-The SFDX_AUTH_URL env var is used on Render to restore the session;
-locally it falls back to the already-authenticated sf CLI.
+Authenticates by exchanging the refresh token from SFDX_AUTH_URL for a live
+access token — no sf CLI, no username/password, works with SSO.
 """
 
-import json
 import os
-import subprocess
+import requests as _requests
 
 from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceError
 
-SF_ORG = "gusto-prod"
+SFDX_AUTH_URL = os.environ.get("SFDX_AUTH_URL", "")
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-def _get_credentials() -> dict:
+def _parse_sfdx_auth_url(auth_url: str) -> dict:
     """
-    Get a live access token + instance URL from the sf CLI.
-    The CLI handles token refresh automatically — no password needed.
+    Parse force://clientId:clientSecret:refreshToken@instanceHost
+    Returns dict with client_id, client_secret, refresh_token, instance_url.
     """
-    result = subprocess.run(
-        ["sf", "org", "display", "--target-org", SF_ORG, "--json"],
-        capture_output=True, text=True
-    )
-    data = json.loads(result.stdout)
-    r    = data["result"]
+    url      = auth_url.replace("force://", "")
+    at_idx   = url.rfind("@")
+    creds    = url[:at_idx]
+    host     = url[at_idx + 1:]
+    parts    = creds.split(":", 2)
     return {
-        "instance_url": r["instanceUrl"],
-        "access_token": r["accessToken"],
+        "client_id":     parts[0],
+        "client_secret": parts[1] if len(parts) > 1 else "",
+        "refresh_token": parts[2] if len(parts) > 2 else "",
+        "instance_url":  f"https://{host}",
     }
 
 
+def _get_access_token(parsed: dict) -> str:
+    """Exchange the refresh token for a fresh access token."""
+    data = {
+        "grant_type":    "refresh_token",
+        "client_id":     parsed["client_id"],
+        "refresh_token": parsed["refresh_token"],
+    }
+    if parsed.get("client_secret"):
+        data["client_secret"] = parsed["client_secret"]
+
+    resp = _requests.post(
+        f"{parsed['instance_url']}/services/oauth2/token",
+        data=data,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()["access_token"]
+
+
 def get_client() -> Salesforce:
-    """
-    Returns an authenticated Salesforce client using the sf CLI session.
-    Called fresh on each request — sf CLI refreshes the token as needed.
-    """
-    creds = _get_credentials()
+    """Returns an authenticated Salesforce client. Called fresh each request."""
+    parsed       = _parse_sfdx_auth_url(SFDX_AUTH_URL)
+    access_token = _get_access_token(parsed)
     return Salesforce(
-        instance_url=creds["instance_url"],
-        session_id=creds["access_token"],
+        instance_url=parsed["instance_url"],
+        session_id=access_token,
     )
 
 
