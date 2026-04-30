@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: se-slack-bot
+    runtime: python
+    plan: starter        # upgrade to standard if you need more memory
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT --timeout 30
+    envVars:
+      - key: SLACK_BOT_TOKEN
+        sync: false      # set manually in Render dashboard
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: SF_USERNAME
+        sync: false
+      - key: SF_PASSWORD
+        sync: false
+      - key: SF_SECURITY_TOKEN
+        sync: false
+      - key: SF_DOMAIN
+        value: login     # change to "test" for sandbox
+      - key: SESSION_DIR
+        value: /data     # persistent disk mount path
+    disk:
+      name: session-state
+      mountPath: /data
+      sizeGB: 1

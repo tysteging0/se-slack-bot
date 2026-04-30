@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SE Ticket Digest — Slack Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #1a1d21;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 260px;
+    background: #19171d;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border-right: 1px solid #2d2d2d;
+  }
+  .sidebar-header {
+    padding: 16px 16px 8px;
+    border-bottom: 1px solid #2d2d2d;
+  }
+  .workspace-name {
+    color: #fff;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+  }
+  .workspace-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #2bac76;
+    border-radius: 50%;
+  }
+  .status-text { color: #9b9b9b; font-size: 12px; }
+
+  .sidebar-section {
+    padding: 16px 8px 4px;
+    color: #9b9b9b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding-left: 16px;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #d1d2d3;
+    font-size: 14px;
+    margin: 0 4px;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,0.07); }
+  .sidebar-item.active { background: #1264a3; color: #fff; }
+  .sidebar-item .icon { font-size: 16px; opacity: 0.8; }
+  .sidebar-item .unread {
+    margin-left: auto;
+    background: #e01e5a;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .avatar-sm {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+
+  /* ── Main area ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1a1d21;
+    overflow: hidden;
+  }
+
+  .channel-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid #2d2d2d;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #1a1d21;
+  }
+  .channel-name {
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .channel-meta { color: #9b9b9b; font-size: 13px; }
+  .header-divider { color: #4a4a4a; }
+
+  /* ── Messages ── */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 0 8px;
+    scroll-behavior: smooth;
+  }
+  .messages::-webkit-scrollbar { width: 6px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: #3d3d3d; border-radius: 3px; }
+
+  .msg-group {
+    display: flex;
+    gap: 10px;
+    padding: 4px 20px;
+    position: relative;
+  }
+  .msg-group:hover { background: rgba(255,255,255,0.03); }
+
+  .bot-avatar {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-meta {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .msg-sender {
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .bot-badge {
+    background: #1264a3;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+  }
+  .msg-time { color: #616061; font-size: 11px; }
+
+  /* ── Block Kit blocks ── */
+  .block-kit {
+    background: #222529;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 500px;
+    margin-top: 2px;
+  }
+
+  .bk-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #3a3a3a;
+  }
+  .bk-header-text {
+    color: #fff;
+    font-weight: 800;
+    font-size: 17px;
+  }
+
+  .bk-section {
+    padding: 10px 16px;
+    color: #d1d2d3;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .bk-section strong { color: #fff; }
+  .bk-section em { color: #aaa; font-style: italic; }
+
+  .bk-divider {
+    border: none;
+    border-top: 1px solid #3a3a3a;
+    margin: 0;
+  }
+
+  .bk-context {
+    padding: 6px 16px 10px;
+    color: #7a7a7a;
+    font-size: 12px;
+  }
+
+  .bk-actions {
+    padding: 8px 12px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Slack-style buttons ── */
+  .slack-btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .slack-btn-default {
+    background: #2c2d30;
+    border-color: #5c5c5c;
+    color: #d1d2d3;
+  }
+  .slack-btn-default:hover { background: #3a3a3d; border-color: #777; }
+
+  .slack-btn-primary {
+    background: #007a5a;
+    border-color: #007a5a;
+    color: #fff;
+  }
+  .slack-btn-primary:hover { background: #148567; }
+
+  .slack-btn-danger {
+    background: #e01e5a;
+    border-color: #e01e5a;
+    color: #fff;
+  }
+  .slack-btn-danger:hover { background: #c91151; }
+
+  .slack-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+  }
+  .slack-btn.clicked {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* ── Priority pill ── */
+  .priority-high  { color: #e8533b; }
+  .priority-med   { color: #e8a23b; }
+  .priority-low   { color: #2bac76; }
+
+  /* ── Ticket card ── */
+  .ticket-id   { font-weight: 700; color: #fff; font-size: 15px; }
+  .ticket-line { margin: 1px 0; }
+  .ticket-dot  { color: #616061; margin: 0 4px; }
+
+  /* ── Modal overlay ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #1e1f22;
+    border-radius: 12px;
+    width: 500px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    overflow: hidden;
+    animation: modal-in 0.18s ease;
+  }
+  @keyframes modal-in {
+    from { transform: scale(0.96); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid #3a3a3a;
+  }
+  .modal-title { color: #fff; font-weight: 700; font-size: 18px; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    color: #7a7a7a; font-size: 20px; line-height: 1;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  .modal-close:hover { color: #fff; background: #3a3a3a; }
+
+  .modal-body { padding: 16px 20px; }
+  .modal-ticket-info {
+    background: #2c2d30;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #d1d2d3;
+    line-height: 1.5;
+  }
+
+  .modal-label {
+    color: #d1d2d3;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .modal-hint {
+    color: #7a7a7a;
+    font-size: 12px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .modal-textarea {
+    width: 100%;
+    background: #2c2d30;
+    border: 1px solid #4a4a4a;
+    border-radius: 6px;
+    color: #d1d2d3;
+    font-size: 14px;
+    font-family: inherit;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+  .modal-textarea:focus {
+    outline: none;
+    border-color: #1264a3;
+    box-shadow: 0 0 0 2px rgba(18,100,163,0.25);
+  }
+  .modal-textarea::placeholder { color: #616061; }
+  .modal-char-hint {
+    font-size: 11px;
+    color: #616061;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .modal-char-hint.warn { color: #e8a23b; }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 20px;
+    border-top: 1px solid #3a3a3a;
+  }
+  .modal-cancel {
+    background: none;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    color: #d1d2d3;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .modal-cancel:hover { background: #2c2d30; }
+  .modal-submit {
+    background: #007a5a;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .modal-submit:hover { background: #148567; }
+  .modal-submit.danger { background: #e01e5a; }
+  .modal-submit.danger:hover { background: #c91151; }
+
+  /* ── Input bar (decorative) ── */
+  .input-area {
+    padding: 12px 20px 16px;
+    border-top: 1px solid #2d2d2d;
+  }
+  .input-box {
+    background: #2c2d30;
+    border: 1px solid #3d3d3d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #616061;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .input-box-text { flex: 1; }
+
+  /* ── Separator ── */
+  .date-separator {
+    text-align: center;
+    position: relative;
+    margin: 12px 20px 8px;
+    color: #616061;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .date-separator::before, .date-separator::after {
+    content: '';
+    position: absolute;
+    top: 50%; width: calc(50% - 60px);
+    height: 1px;
+    background: #3a3a3a;
+  }
+  .date-separator::before { left: 0; }
+  .date-separator::after  { right: 0; }
+
+  /* ── Confirmed state indicator ── */
+  .bk-confirmed { border-left: 4px solid #2bac76; }
+  .bk-closed    { border-left: 4px solid #e01e5a; }
+
+  /* ── Demo controls ── */
+  .demo-bar {
+    position: fixed;
+    top: 12px; right: 16px;
+    background: #0f1117;
+    border: 1px solid #3a3a3a;
+    border-radius: 10px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 50;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  }
+  .demo-label { color: #9b9b9b; font-size: 12px; font-weight: 600; }
+  .demo-btn {
+    background: #2c2d30;
+    border: 1px solid #4a4a4a;
+    border-radius: 6px;
+    color: #d1d2d3;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  .demo-btn:hover { background: #3a3a3d; }
+  .demo-btn.active { background: #1264a3; border-color: #1264a3; color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="workspace-name">Gusto</div>
+    <div class="workspace-status">
+      <div class="status-dot"></div>
+      <div class="status-text">Michaël Vasseur</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">Direct Messages</div>
+  <div class="sidebar-item active">
+    <div class="bot-avatar" style="width:20px;height:20px;font-size:11px;border-radius:4px;">🎟</div>
+    SE Tickets Bot
+    <span class="unread">8</span>
+  </div>
+  <div class="sidebar-item">
+    <div class="avatar-sm" style="background:#e8533b;">JS</div>
+    Jordan Salinas
+  </div>
+  <div class="sidebar-item">
+    <div class="avatar-sm" style="background:#2bac76;">KM</div>
+    Kayla Monroe
+  </div>
+  <div class="sidebar-item">
+    <div class="avatar-sm" style="background:#7c3aed;">WT</div>
+    Willow Turano
+  </div>
+
+  <div class="sidebar-section" style="margin-top:12px;">Channels</div>
+  <div class="sidebar-item">
+    <span class="icon">#</span> se-team
+  </div>
+  <div class="sidebar-item">
+    <span class="icon">#</span> sales-engineering
+  </div>
+  <div class="sidebar-item">
+    <span class="icon">#</span> deal-desk
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div class="main">
+  <div class="channel-header">
+    <div class="bot-avatar" style="width:28px;height:28px;font-size:14px;">🎟</div>
+    <div class="channel-name">SE Tickets Bot</div>
+    <div class="header-divider">·</div>
+    <div class="channel-meta">Daily ticket digest for your open SE requests</div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="date-separator">Today — Wednesday, April 29</div>
+
+    <!-- ── Opening card: Ticket 1 ── -->
+    <div class="msg-group" id="msg-opening-1">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:00 AM</span>
+        </div>
+        <div class="block-kit" id="card-opening-1">
+          <div class="bk-header">
+            <div class="bk-header-text">Good morning Michaël 👋</div>
+          </div>
+          <div class="bk-section">
+            You have <strong>8</strong> open tickets to review today.
+          </div>
+          <hr class="bk-divider">
+          <div class="bk-section">
+            <span class="priority-high">🔴</span>&nbsp; <strong>1 of 8</strong> &nbsp;·&nbsp; High Priority &nbsp;·&nbsp; SF Priority: <strong>High</strong><br><br>
+            <span class="ticket-id">📋 Ticket-00864090</span><br>
+            <span class="ticket-line">🏢&nbsp; Chris Bailey Inc</span><br>
+            <span class="ticket-line">💼&nbsp; Chris Bailey Inc - New Business &nbsp;·&nbsp; <em>Commit</em></span><br>
+            <span class="ticket-line">📅&nbsp; Open 9 days &nbsp;·&nbsp; <span style="color:#e8a23b;">⏰ Aging</span> &nbsp;·&nbsp; ⚓&nbsp; APD: Jun 1, 2026 &nbsp;·&nbsp; 💰&nbsp; $8,400</span>
+          </div>
+          <hr class="bk-divider">
+          <div class="bk-section">Have you connected with the requester on this?</div>
+          <div class="bk-actions" id="actions-opening-1">
+            <button class="slack-btn slack-btn-primary" onclick="clickYes('1')">✅&nbsp; Yes</button>
+            <button class="slack-btn slack-btn-default" onclick="clickNo('1')">❌&nbsp; Not Yet</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Response messages injected here ── -->
+    <div id="thread-1"></div>
+    <div id="thread-2"></div>
+    <div id="msg-complete" style="display:none;">
+      <div class="msg-group">
+        <div class="bot-avatar">🎟</div>
+        <div class="msg-body">
+          <div class="msg-meta">
+            <span class="msg-sender">SE Tickets Bot</span>
+            <span class="bot-badge">APP</span>
+            <span class="msg-time" id="complete-time"></span>
+          </div>
+          <div class="block-kit bk-confirmed">
+            <div class="bk-section" style="padding:16px;">
+              🎉&nbsp; <strong>All done, Michaël!</strong> You reviewed <strong>8</strong> tickets today.<br>
+              Salesforce is up to date. See you tomorrow 👋
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Manager recap (separate DM, shown in mockup below) ── -->
+    <div id="msg-recap" style="display:none; margin-top:16px;">
+      <div class="date-separator">Manager Recap DM — sent to Tyler Steging</div>
+      <div class="msg-group">
+        <div class="bot-avatar">🎟</div>
+        <div class="msg-body">
+          <div class="msg-meta">
+            <span class="msg-sender">SE Tickets Bot</span>
+            <span class="bot-badge">APP</span>
+            <span class="msg-time" id="recap-time"></span>
+          </div>
+          <div class="block-kit">
+            <div class="bk-header">
+              <div class="bk-header-text">📊&nbsp; SE Digest Recap — April 29, 2026</div>
+            </div>
+            <div class="bk-section">
+              <strong>7</strong> tickets reviewed today &nbsp;·&nbsp;
+              <strong>2</strong> closed &nbsp;·&nbsp;
+              <strong>2</strong> still active &nbsp;·&nbsp;
+              <strong>2</strong> DMs sent &nbsp;·&nbsp;
+              <strong>1</strong> skipped
+            </div>
+            <hr class="bk-divider">
+
+            <!-- Michaël -->
+            <div class="bk-section">
+              <strong>Michaël Vasseur</strong> &nbsp;·&nbsp; 4 tickets &nbsp;·&nbsp; 1 closed · 1 active · 1 DM · 1 skipped
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              🔄&nbsp; <strong>Ticket-00864090</strong> &nbsp;·&nbsp; Chris Bailey Inc &nbsp;·&nbsp; <em>Commit</em> &nbsp;·&nbsp; 💰 $8,400<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>Still Active</em>: Demo scheduled for Friday. Following up on pricing after the call.</span>
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              ✅&nbsp; <strong>Ticket-00871234</strong> &nbsp;·&nbsp; Goldstein &amp; Partners &nbsp;·&nbsp; <em>Discovery</em> &nbsp;·&nbsp; 💰 $5,200<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>Closed</em>: Ran full product demo. AE closed the deal the same week.</span>
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              📨&nbsp; <strong>Ticket-00879012</strong> &nbsp;·&nbsp; Smith Corp &nbsp;·&nbsp; <em>Qualified</em> &nbsp;·&nbsp; 💰 $12,000<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>DM Sent</em></span>
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              ⏭️&nbsp; <strong>Ticket-00880123</strong> &nbsp;·&nbsp; Apex Holdings &nbsp;·&nbsp; <em>Prospecting</em> &nbsp;·&nbsp; 💰 $3,100<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>Skipped</em></span>
+            </div>
+            <hr class="bk-divider">
+
+            <!-- Willow -->
+            <div class="bk-section">
+              <strong>Willow Turano</strong> &nbsp;·&nbsp; 3 tickets &nbsp;·&nbsp; 1 closed · 1 active · 1 DM · 0 skipped
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              ✅&nbsp; <strong>Ticket-00865001</strong> &nbsp;·&nbsp; Sunrise Staffing &nbsp;·&nbsp; <em>Commit</em> &nbsp;·&nbsp; 💰 $22,000<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>Closed</em>: Full demo completed. Legal approved. Going live next week.</span>
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              🔄&nbsp; <strong>Ticket-00872345</strong> &nbsp;·&nbsp; Metro Services LLC &nbsp;·&nbsp; <em>Discovery</em> &nbsp;·&nbsp; 💰 $9,800<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>Still Active</em>: Technical review call set for Thursday. Waiting on IT security sign-off.</span>
+            </div>
+            <div class="bk-section" style="padding-top:4px;">
+              📨&nbsp; <strong>Ticket-00881456</strong> &nbsp;·&nbsp; Redwood Partners &nbsp;·&nbsp; <em>Prospecting</em> &nbsp;·&nbsp; 💰 $4,500<br>
+              <span style="color:#7a7a7a;display:block;border-left:3px solid #3a3a3a;padding-left:10px;margin-top:4px;font-size:13px;"><em>DM Sent</em></span>
+            </div>
+            <div class="bk-context">SE Tickets Bot &nbsp;·&nbsp; April 29, 2026</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-box">
+      <span class="input-box-text">Message SE Tickets Bot</span>
+      <span>😊</span><span>📎</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Demo controls ── -->
+<div class="demo-bar">
+  <div class="demo-label">Demo path:</div>
+  <button class="demo-btn active" id="path-btn-A" onclick="setPath('A')">A · Yes → Active</button>
+  <button class="demo-btn" id="path-btn-B" onclick="setPath('B')">B · Yes → Close</button>
+  <button class="demo-btn" id="path-btn-C" onclick="setPath('C')">C · No → DM</button>
+  <button class="demo-btn" id="path-btn-D" onclick="setPath('D')">D · No → Skip</button>
+  <button class="demo-btn" id="path-btn-E" onclick="setPath('E')">E · One-tap</button>
+  <button class="demo-btn" onclick="resetDemo()" style="border-color:#e01e5a;color:#e01e5a;">↺ Reset</button>
+</div>
+
+<!-- ── Still Active modal ── -->
+<div class="modal-overlay" id="modal-active">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Next Steps</div>
+      <button class="modal-close" onclick="closeModal('modal-active')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-ticket-info">
+        <strong>Ticket-00864090</strong>&nbsp;·&nbsp; Chris Bailey Inc<br>
+        <span style="color:#9b9b9b;"><em>Commit</em>&nbsp;·&nbsp; Open 9 days &nbsp;·&nbsp; ⚓ APD: Jun 1, 2026</span>
+      </div>
+      <label class="modal-label">What are the next steps?</label>
+      <span class="modal-hint">This will be posted to the ticket's chatter in Salesforce.</span>
+      <textarea class="modal-textarea" id="active-note" placeholder="e.g. Demo scheduled for Friday. Following up on pricing after the call..."
+        oninput="updateCharHint('active-note','active-hint')"></textarea>
+      <div class="modal-char-hint" id="active-hint">10 character minimum</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal('modal-active')">Cancel</button>
+      <button class="modal-submit" onclick="submitActive()">Submit ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Close Ticket modal ── -->
+<div class="modal-overlay" id="modal-close">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Resolution Note</div>
+      <button class="modal-close" onclick="closeModal('modal-close')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-ticket-info">
+        <strong>Ticket-00864090</strong>&nbsp;·&nbsp; Chris Bailey Inc<br>
+        <span style="color:#9b9b9b;"><em>Commit</em>&nbsp;·&nbsp; Open 9 days &nbsp;·&nbsp; ⚓ APD: Jun 1, 2026</span>
+      </div>
+      <label class="modal-label">How was this resolved?</label>
+      <span class="modal-hint">This will be posted to the ticket's chatter and the ticket will be closed in Salesforce.</span>
+      <textarea class="modal-textarea" id="close-note" placeholder="e.g. Ran full product demo. AE closed the deal the same week. Customer loved payroll automation..."
+        oninput="updateCharHint('close-note','close-hint')"></textarea>
+      <div class="modal-char-hint" id="close-hint">10 character minimum</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal('modal-close')">Cancel</button>
+      <button class="modal-submit danger" onclick="submitClose()">Close Ticket ✅</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let _path = 'A';
+let _step = 0;
+const NOW = new Date();
+
+function timeStr(offsetMin = 0) {
+  const d = new Date(NOW.getTime() + offsetMin * 60000);
+  let h = d.getHours(), m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h > 12) h -= 12;
+  if (h === 0) h = 12;
+  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+// ── Demo path selector ─────────────────────────────────────────────────────
+function setPath(p) {
+  _path = p;
+  ['A','B','C','D','E'].forEach(x => {
+    document.getElementById(`path-btn-${x}`).classList.toggle('active', x === p);
+  });
+  resetDemo();
+}
+
+function resetDemo() {
+  document.getElementById('thread-1').innerHTML = '';
+  document.getElementById('thread-2').innerHTML = '';
+  document.getElementById('msg-complete').style.display = 'none';
+  document.getElementById('msg-recap').style.display = 'none';
+
+  const c1 = document.getElementById('card-opening-1');
+  if (_path === 'E') {
+    // Swap card 1 for the one-tap card
+    if (c1) { c1.className = 'block-kit'; c1.innerHTML = buildOneTapCardInner(); }
+  } else {
+    // Restore standard card 1
+    if (c1) {
+      c1.className = 'block-kit';
+      c1.innerHTML = `
+        <div class="bk-header"><div class="bk-header-text">Good morning Michaël 👋</div></div>
+        <div class="bk-section">You have <strong>8</strong> open tickets to review today.</div>
+        <hr class="bk-divider">
+        <div class="bk-section">
+          <span class="priority-high">🔴</span>&nbsp; <strong>1 of 8</strong> &nbsp;·&nbsp; High Priority &nbsp;·&nbsp; SF Priority: <strong>High</strong><br><br>
+          <span class="ticket-id">📋 Ticket-00864090</span><br>
+          <span class="ticket-line">🏢&nbsp; Chris Bailey Inc</span><br>
+          <span class="ticket-line">💼&nbsp; Chris Bailey Inc - New Business &nbsp;·&nbsp; <em>Commit</em></span><br>
+          <span class="ticket-line">📅&nbsp; Open 9 days &nbsp;·&nbsp; <span style="color:#e8a23b;">⏰ Aging</span> &nbsp;·&nbsp; ⚓&nbsp; APD: Jun 1, 2026 &nbsp;·&nbsp; 💰&nbsp; $8,400</span>
+          <!-- 4 days = no staleness indicator -->
+        </div>
+        <hr class="bk-divider">
+        <div class="bk-section">Have you connected with the requester on this?</div>
+        <div class="bk-actions" id="actions-opening-1">
+          <button class="slack-btn slack-btn-primary" onclick="clickYes('1')">✅&nbsp; Yes</button>
+          <button class="slack-btn slack-btn-default" onclick="clickNo('1')">❌&nbsp; Not Yet</button>
+        </div>`;
+    }
+  }
+
+  ['active-note','close-note'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['active-hint','close-hint'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = '10 character minimum'; el.className = 'modal-char-hint'; }
+  });
+  _step = 0;
+  scrollToBottom();
+}
+
+function buildOneTapCardInner() {
+  return `
+    <div class="bk-header"><div class="bk-header-text">Good morning Michaël 👋</div></div>
+    <div class="bk-section">You have <strong>8</strong> open tickets to review today.</div>
+    <hr class="bk-divider">
+    <div class="bk-section">
+      <span class="priority-high">🔴</span>&nbsp; <strong>1 of 8</strong> &nbsp;·&nbsp; High Priority &nbsp;·&nbsp; SF Priority: <strong>High</strong><br><br>
+      <span class="ticket-id">📋 Ticket-00864090</span><br>
+      <span class="ticket-line">🏢&nbsp; Chris Bailey Inc</span><br>
+      <span class="ticket-line">💼&nbsp; Chris Bailey Inc - New Business &nbsp;·&nbsp; <em>Commit</em></span><br>
+      <span class="ticket-line">📅&nbsp; Open 9 days &nbsp;·&nbsp; <span style="color:#e8a23b;">⏰ Aging</span> &nbsp;·&nbsp; ⚓&nbsp; APD: Jun 1, 2026 &nbsp;·&nbsp; 💰&nbsp; $8,400</span>
+    </div>
+    <hr class="bk-divider">
+    <div class="bk-section">
+      <span style="color:#9b9b9b;font-size:13px;">🗒️&nbsp; <strong>Last update (3 days ago):</strong></span><br>
+      <span style="display:block;border-left:3px solid #4a4a4a;padding-left:10px;margin-top:6px;color:#aaa;font-size:13px;font-style:italic;">Demo scheduled for Friday. Following up on pricing after the call.</span>
+    </div>
+    <div class="bk-section" style="padding-top:4px;">Still active on this one?</div>
+    <div class="bk-actions" id="actions-opening-1">
+      <button class="slack-btn slack-btn-primary" onclick="clickOneTapActive()">✅&nbsp; Confirm Active</button>
+      <button class="slack-btn slack-btn-default" onclick="clickActive()">📝&nbsp; Add Update</button>
+      <button class="slack-btn slack-btn-danger" onclick="clickClose()">🔒&nbsp; Close Ticket</button>
+    </div>`;
+}
+
+// ── Path A / B: Yes ────────────────────────────────────────────────────────
+function clickYes(slot) {
+  disableActions(`actions-opening-${slot}`);
+  document.getElementById(`card-opening-${slot}`).classList.add('bk-confirmed');
+
+  setTimeout(() => {
+    injectMessage('thread-1', buildConnectedYes(), '8:00');
+    scrollToBottom();
+  }, 300);
+}
+
+function buildConnectedYes() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:00 AM</span>
+        </div>
+        <div class="block-kit" id="card-connected-yes">
+          <div class="bk-section">Got it — you've connected on <strong>Ticket-00864090</strong>. ✅</div>
+          <hr class="bk-divider">
+          <div class="bk-section">What's the current status?</div>
+          <div class="bk-actions" id="actions-connected-yes">
+            <button class="slack-btn slack-btn-danger" onclick="clickClose()">🔒&nbsp; Close Ticket</button>
+            <button class="slack-btn slack-btn-default" onclick="clickActive()">🔄&nbsp; Still Active</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function clickActive() {
+  document.getElementById('modal-active').classList.add('open');
+}
+
+function clickClose() {
+  document.getElementById('modal-close').classList.add('open');
+}
+
+function clickOneTapActive() {
+  disableActions('actions-opening-1');
+  document.getElementById('card-opening-1').classList.add('bk-confirmed');
+  setTimeout(() => {
+    injectMessage('thread-1', buildOneTapConfirmed(), '8:00');
+    scrollToBottom();
+  }, 300);
+  setTimeout(() => { showTicket2(); }, 1600);
+}
+
+function buildOneTapConfirmed() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:00 AM</span>
+        </div>
+        <div class="block-kit bk-confirmed">
+          <div class="bk-section">
+            ✅&nbsp; <strong>Ticket-00864090</strong> confirmed active — Salesforce is up to date.
+          </div>
+          <div class="bk-context">Moving to your next ticket...</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function updateCharHint(textareaId, hintId) {
+  const len = document.getElementById(textareaId).value.trim().length;
+  const el  = document.getElementById(hintId);
+  if (len < 10) {
+    el.textContent = `${10 - len} more character${10-len !== 1 ? 's' : ''} needed`;
+    el.className = 'modal-char-hint warn';
+  } else {
+    el.textContent = `${len} characters`;
+    el.className = 'modal-char-hint';
+  }
+}
+
+function submitActive() {
+  const note = document.getElementById('active-note').value.trim();
+  if (note.length < 10) {
+    document.getElementById('active-hint').textContent = 'Please enter at least 10 characters.';
+    document.getElementById('active-hint').className = 'modal-char-hint warn';
+    document.getElementById('active-note').focus();
+    return;
+  }
+  closeModal('modal-active');
+  disableActions('actions-connected-yes');
+  document.getElementById('card-connected-yes').classList.add('bk-confirmed');
+
+  const today = formatDate(NOW);
+  setTimeout(() => {
+    injectMessage('thread-1', buildUpdateConfirmed(note, today), '8:01');
+    scrollToBottom();
+  }, 300);
+  setTimeout(() => { showTicket2(); }, 1800);
+}
+
+function submitClose() {
+  const note = document.getElementById('close-note').value.trim();
+  if (note.length < 10) {
+    document.getElementById('close-hint').textContent = 'Please enter at least 10 characters.';
+    document.getElementById('close-hint').className = 'modal-char-hint warn';
+    document.getElementById('close-note').focus();
+    return;
+  }
+  closeModal('modal-close');
+  disableActions('actions-connected-yes');
+  document.getElementById('card-connected-yes').classList.add('bk-closed');
+
+  const today = formatDate(NOW);
+  setTimeout(() => {
+    injectMessage('thread-1', buildCloseConfirmed(note, today), '8:01');
+    scrollToBottom();
+  }, 300);
+  setTimeout(() => { showTicket2(); }, 1800);
+}
+
+function buildUpdateConfirmed(note, today) {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit bk-confirmed">
+          <div class="bk-section">
+            ✅&nbsp; <strong>Ticket-00864090</strong> stays open — note posted to Salesforce chatter:<br><br>
+            <span style="color:#7a7a7a;display:block;border-left:3px solid #4a4a4a;padding-left:10px;margin-top:4px;">
+              🔄 SE Update — ${today}<br>${note}
+            </span>
+          </div>
+          <div class="bk-context">Moving to your next ticket...</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function buildCloseConfirmed(note, today) {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit bk-closed">
+          <div class="bk-section">
+            ✅&nbsp; <strong>Ticket-00864090</strong> closed — resolution posted to Salesforce chatter:<br><br>
+            <span style="color:#7a7a7a;display:block;border-left:3px solid #4a4a4a;padding-left:10px;margin-top:4px;">
+              ✅ SE Resolution — ${today}<br>${note}
+            </span>
+          </div>
+          <div class="bk-context">Moving to your next ticket...</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Path C / D: Not Yet ────────────────────────────────────────────────────
+function clickNo(slot) {
+  disableActions(`actions-opening-${slot}`);
+
+  setTimeout(() => {
+    injectMessage('thread-1', buildNotYet(), '8:00');
+    scrollToBottom();
+  }, 300);
+}
+
+function buildNotYet() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:00 AM</span>
+        </div>
+        <div class="block-kit" id="card-not-yet">
+          <div class="bk-section">Got it — not connected yet on <strong>Ticket-00864090</strong>.</div>
+          <hr class="bk-divider">
+          <div class="bk-section">Want me to ping <strong>Mackenzie Matthews</strong> now to set up time?</div>
+          <div class="bk-actions" id="actions-not-yet">
+            <button class="slack-btn slack-btn-primary" onclick="clickDmSend()">📨&nbsp; Send them a DM</button>
+            <button class="slack-btn slack-btn-default" onclick="clickDmSkip()">⏭️&nbsp; Skip for now</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function clickDmSend() {
+  disableActions('actions-not-yet');
+  document.getElementById('card-not-yet').classList.add('bk-confirmed');
+
+  setTimeout(() => {
+    injectMessage('thread-1', buildDmSent(), '8:01');
+    scrollToBottom();
+  }, 300);
+  setTimeout(() => { showTicket2(); }, 1800);
+}
+
+function clickDmSkip() {
+  disableActions('actions-not-yet');
+  setTimeout(() => { showTicket2(); }, 400);
+}
+
+function buildDmSent() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit bk-confirmed">
+          <div class="bk-section">
+            ✅&nbsp; DM sent to <strong>Mackenzie Matthews</strong>:<br><br>
+            <span style="color:#7a7a7a;display:block;border-left:3px solid #4a4a4a;padding-left:10px;margin-top:4px;">
+              Hey Mackenzie! Michaël wanted to connect on Ticket-00864090 for Chris Bailey Inc. Are you free to sync this week?
+            </span>
+          </div>
+          <div class="bk-context">Moving to your next ticket...</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Ticket 2 (simplified — shows next ticket in queue) ────────────────────
+function showTicket2() {
+  injectMessage('thread-2', buildTicket2Card(), '8:01');
+  scrollToBottom();
+}
+
+function buildTicket2Card() {
+  return `
+    <div class="msg-group" style="margin-top:8px;">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit" id="card-ticket-2">
+          <div class="bk-section">
+            <span class="priority-med">🟡</span>&nbsp; <strong>2 of 8</strong> &nbsp;·&nbsp; Medium &nbsp;·&nbsp; SF Priority: <strong>Medium</strong><br><br>
+            <span class="ticket-id">📋 Ticket-00871234</span><br>
+            <span class="ticket-line">🏢&nbsp; Goldstein &amp; Partners</span><br>
+            <span class="ticket-line">💼&nbsp; Goldstein &amp; Partners - New Business &nbsp;·&nbsp; <em>Discovery</em></span><br>
+            <span class="ticket-line">📅&nbsp; Open 4 days &nbsp;·&nbsp; ⚓&nbsp; APD: Jul 15, 2026 &nbsp;·&nbsp; 💰&nbsp; $5,200</span>
+            <!-- 4 days = no staleness indicator -->
+          </div>
+          <hr class="bk-divider">
+          <div class="bk-section">Have you connected with the requester on this?</div>
+          <div class="bk-actions" id="actions-ticket-2">
+            <button class="slack-btn slack-btn-primary" onclick="finishDemo()">✅&nbsp; Yes</button>
+            <button class="slack-btn slack-btn-default" onclick="finishDemo()">❌&nbsp; Not Yet</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function finishDemo() {
+  disableActions('actions-ticket-2');
+  document.getElementById('card-ticket-2').classList.add('bk-confirmed');
+  setTimeout(() => {
+    document.getElementById('complete-time').textContent = timeStr(3);
+    document.getElementById('msg-complete').style.display = 'block';
+    scrollToBottom();
+  }, 600);
+  setTimeout(() => {
+    document.getElementById('recap-time').textContent = timeStr(480); // ~5pm
+    document.getElementById('msg-recap').style.display = 'block';
+    scrollToBottom();
+  }, 2000);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function injectMessage(containerId, html, time) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.insertAdjacentHTML('beforeend', html);
+}
+
+function disableActions(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.querySelectorAll('.slack-btn').forEach(b => {
+    b.classList.add('clicked');
+    b.disabled = true;
+  });
+}
+
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  setTimeout(() => { m.scrollTop = m.scrollHeight; }, 50);
+}
+
+function formatDate(d) {
+  const months = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+// ── On load: show guide ────────────────────────────────────────────────────
+// Route initial click based on demo path selection
+window.addEventListener('DOMContentLoaded', () => {
+  setPath('A');
+});
+
+// Keyboard: Escape closes modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  }
+});
+</script>
+</body>
+</html>

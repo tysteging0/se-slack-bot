@@ -1,0 +1,85 @@
+{
+  "2026-04-29": {
+    "reviewed": [
+      "Ticket-00864090",
+      "Ticket-00871234",
+      "Ticket-00879012",
+      "Ticket-00880123",
+      "Ticket-00865001",
+      "Ticket-00872345",
+      "Ticket-00881456"
+    ],
+    "log": [
+      {
+        "se": "Micha\u00ebl Vasseur",
+        "ticket_id": "Ticket-00864090",
+        "account": "Chris Bailey Inc",
+        "opp_stage": "Commit",
+        "opp_amount": 8400,
+        "action": "still_active",
+        "note": "Demo scheduled for Friday. Following up on pricing after the call.",
+        "time": "8:14 AM"
+      },
+      {
+        "se": "Micha\u00ebl Vasseur",
+        "ticket_id": "Ticket-00871234",
+        "account": "Goldstein & Partners",
+        "opp_stage": "Discovery",
+        "opp_amount": 5200,
+        "action": "close",
+        "note": "Ran full product demo. AE closed the deal the same week.",
+        "time": "8:17 AM"
+      },
+      {
+        "se": "Micha\u00ebl Vasseur",
+        "ticket_id": "Ticket-00879012",
+        "account": "Smith Corp",
+        "opp_stage": "Qualified",
+        "opp_amount": 12000,
+        "action": "dm_send",
+        "note": "",
+        "time": "8:19 AM"
+      },
+      {
+        "se": "Micha\u00ebl Vasseur",
+        "ticket_id": "Ticket-00880123",
+        "account": "Apex Holdings",
+        "opp_stage": "Prospecting",
+        "opp_amount": 3100,
+        "action": "skip",
+        "note": "",
+        "time": "8:21 AM"
+      },
+      {
+        "se": "Willow Turano",
+        "ticket_id": "Ticket-00865001",
+        "account": "Sunrise Staffing",
+        "opp_stage": "Commit",
+        "opp_amount": 22000,
+        "action": "close",
+        "note": "Full demo completed. Legal approved. Going live next week.",
+        "time": "8:09 AM"
+      },
+      {
+        "se": "Willow Turano",
+        "ticket_id": "Ticket-00872345",
+        "account": "Metro Services LLC",
+        "opp_stage": "Discovery",
+        "opp_amount": 9800,
+        "action": "still_active",
+        "note": "Technical review call set for Thursday. Waiting on IT security sign-off.",
+        "time": "8:12 AM"
+      },
+      {
+        "se": "Willow Turano",
+        "ticket_id": "Ticket-00881456",
+        "account": "Redwood Partners",
+        "opp_stage": "Prospecting",
+        "opp_amount": 4500,
+        "action": "dm_send",
+        "note": "",
+        "time": "8:15 AM"
+      }
+    ]
+  }
+}
