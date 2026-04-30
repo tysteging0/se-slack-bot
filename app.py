@@ -342,6 +342,9 @@ def cron_digest():
     _verify_cron(request)
 
     for owner_name, cfg in OWNERS.items():
+        if cfg.get("skip"):
+            print(f"[SKIP] {owner_name} marked as OOO — skipping digest")
+            continue
         try:
             slack_id = cfg["slack_id"]
             channel  = _dm_channel(slack_id)

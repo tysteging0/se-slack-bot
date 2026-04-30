@@ -29,6 +29,7 @@ OWNERS = {
     "Michaël Vasseur": {
         "slack_id": "UPUFD3AKH",
         "first_name": "Michaël",
+        "skip": True,  # OOO week of Apr 30 — remove when back
     },
     "Willow Turano": {
         "slack_id": "UNWKXTDDL",
