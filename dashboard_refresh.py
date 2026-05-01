@@ -2,16 +2,16 @@
 """
 se-slack-bot/dashboard_refresh.py
 
-Pulls SE ticket data from Salesforce and publishes the updated dashboard
-to share-some-html. Called by the /cron/refresh-dashboard Flask route.
+Pulls SE ticket data from Salesforce, injects it into the HTML template,
+and writes the result to the persistent disk so /dashboard can serve it.
 
 No sf CLI required — uses OAuth via sf_client.py.
 """
 
 import json
+import os
 import re
 import statistics
-import urllib.request
 from collections import defaultdict
 from datetime import datetime, date
 from pathlib import Path
@@ -20,11 +20,13 @@ from sf_client import run_soql
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SHARE_URL       = "https://share-some-html.staging.zp-int.com/mcp"
-SHARE_SLUG      = "se-ticket-trends"
-SHARE_OWNER_KEY = "rBYDxAfsaSxbEEEA"
+# Template lives in the repo (read-only source of truth)
+TEMPLATE_FILE = Path(__file__).parent / "se-ticket-trends.html"
 
-HTML_FILE   = Path(__file__).parent / "se-ticket-trends.html"
+# Output goes to persistent disk so /dashboard can serve the latest version
+SESSION_DIR = Path(os.environ.get("SESSION_DIR", "/data"))
+OUTPUT_FILE = SESSION_DIR / "se-ticket-trends.html"
+
 PLACEHOLDER = "const PRELOADED = null; // INJECTED_BY_REFRESH_SCRIPT"
 
 FY_START = "2025-05-01T00:00:00Z"
@@ -436,11 +438,11 @@ def run_refresh() -> dict:
         " // INJECTED_BY_REFRESH_SCRIPT"
     )
 
-    # ── 8. Inject into local HTML copy ───────────────────────────────────────
-    if not HTML_FILE.exists():
-        raise FileNotFoundError(f"HTML template not found: {HTML_FILE}")
+    # ── 8. Read template, inject data, write to persistent disk ──────────────
+    if not TEMPLATE_FILE.exists():
+        raise FileNotFoundError(f"HTML template not found: {TEMPLATE_FILE}")
 
-    html = HTML_FILE.read_text(encoding="utf-8")
+    html = TEMPLATE_FILE.read_text(encoding="utf-8")
     html = re.sub(
         r"const PRELOADED = .*?; // INJECTED_BY_REFRESH_SCRIPT",
         PLACEHOLDER,
@@ -450,37 +452,13 @@ def run_refresh() -> dict:
     if PLACEHOLDER not in html:
         raise RuntimeError("Could not locate PRELOADED placeholder in HTML.")
 
-    HTML_FILE.write_text(html.replace(PLACEHOLDER, injection), encoding="utf-8")
-
-    # ── 9. Publish to share-some-html ─────────────────────────────────────────
-    pub_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "method":  "tools/call",
-        "id":      1,
-        "params": {
-            "name": "update",
-            "arguments": {
-                "slug":         SHARE_SLUG,
-                "owner_key":    SHARE_OWNER_KEY,
-                "html_content": HTML_FILE.read_text(encoding="utf-8"),
-            }
-        }
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        SHARE_URL,
-        data=pub_payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        result  = json.loads(resp.read())
-    version = json.loads(result["result"]["content"][0]["text"]).get("version_number", "?")
-    print(f"  Published → v{version}")
+    SESSION_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_FILE.write_text(html.replace(PLACEHOLDER, injection), encoding="utf-8")
+    print(f"  Written → {OUTPUT_FILE}")
 
     total = len(tickets)
     won   = sum(1 for t in tickets if t["category"] == "Closed Won")
     mrr   = sum(t["amount"] for t in tickets if t["category"] == "Closed Won")
 
     print(f"  Done — {total} tickets, {won} won, ${mrr:,.0f} MRR")
-    return {"tickets": total, "won": won, "mrr": mrr, "version": version, "refreshed_at": refreshed_at}
+    return {"tickets": total, "won": won, "mrr": mrr, "refreshed_at": refreshed_at}
