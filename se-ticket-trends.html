@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solution Engineering Reporting + Trends</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #e9ecef;
+      --navy: #1a1a2e;
+      --muted: #6c757d;
+      --success: #28a745;
+      --danger: #dc3545;
+      --indigo: #6366f1;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+      --purple: #8b5cf6;
+      --teal:   #0d9488;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: linear-gradient(160deg, #fdf6f0 0%, #faf8ff 45%, #f0faf9 100%) fixed;
+      min-height: 100vh;
+      color: var(--navy);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .page-header {
+      text-align: center;
+      padding: 40px 36px 28px;
+      background: transparent;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .page-header h1 { font-size: 28px; font-weight: 700; color: var(--navy); letter-spacing: -0.4px; }
+    .page-header p  { color: var(--muted); font-size: 13px; margin-top: 6px; }
+    .main { padding: 32px 36px; max-width: 1400px; margin: 0 auto; }
+    /* ── Loading ── */
+    #loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    #loading .spinner {
+      display: inline-block;
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--navy);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #error-msg {
+      display: none;
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      color: var(--danger);
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    /* ── Nav ── */
+    .nav-shell {
+      margin-bottom: 32px;
+      display: flex; flex-direction: column; gap: 0; align-items: center;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 8px 24px;
+      overflow: hidden;
+    }
+    .nav-row {
+      display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center;
+      width: 100%; padding: 6px 0;
+    }
+    .nav-row + .nav-row { border-top: 1px solid #f1f3f5; }
+    .nav-label {
+      font-size: 9px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1px; color: #b0b8c4; white-space: nowrap;
+      min-width: 52px; text-align: right; padding-right: 12px;
+    }
+    .btn-track {
+      display: flex; align-items: center; gap: 3px;
+      background: #f0f1f4; border-radius: 30px; padding: 3px;
+    }
+    .nav-sep { width: 1px; height: 20px; background: #d8dce3; margin: 0 8px; }
+    .p-btn, .v-btn, .s-btn, .fy-btn, .o-btn {
+      padding: 6px 18px; border: none; background: transparent;
+      color: #7a8499; border-radius: 24px; cursor: pointer;
+      font-size: 12px; font-weight: 600; transition: all 0.18s ease;
+      white-space: nowrap; letter-spacing: 0.1px; line-height: 1;
+    }
+    .p-btn:hover, .v-btn:hover, .s-btn:hover,
+    .fy-btn:hover, .o-btn:hover { color: var(--navy); background: rgba(255,255,255,0.8); }
+    .p-btn.active  { background: linear-gradient(135deg,#0f172a,#334155); color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.3); }
+    .v-btn.active  { background: linear-gradient(135deg,#0f172a,#334155); color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.3); }
+    .s-btn.active  { background: linear-gradient(135deg,#6366f1,#818cf8); color: #fff; box-shadow: 0 2px 8px rgba(99,102,241,0.35); }
+    .fy-btn.active { background: linear-gradient(135deg,#0f172a,#334155); color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.3); }
+    .o-btn.active  { background: linear-gradient(135deg,#0f172a,#334155); color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,0.3); }
+    /* Non-default active selection → bright blue */
+    .p-btn.active-alt, .v-btn.active-alt, .fy-btn.active-alt, .o-btn.active-alt {
+      background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+    }
+    /* Premium → coral */
+    .s-btn.active-premium { background: linear-gradient(135deg,#f43f5e,#fb7185); color: #fff; box-shadow: 0 2px 8px rgba(244,63,94,0.35); opacity: 1; }
+    .s-btn { opacity: 0.75; }
+    .s-btn.active { opacity: 1; }
+    .view-row-dimmed { opacity: 0.35; pointer-events: none; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    /* ── KPI Grid ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+    .kpi-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 10px; }
+    .kpi-card .value { font-size: 32px; font-weight: 700; line-height: 1; color: var(--navy); }
+    .kpi-card .sub   { font-size: 11px; color: var(--muted); margin-top: 7px; }
+    .kpi-card.green  .value { color: var(--success); }
+    .kpi-card.red    .value { color: var(--danger); }
+    .kpi-card.indigo .value { color: var(--indigo); }
+    .kpi-card.amber  .value { color: var(--amber); }
+    .kpi-card.blue   .value { color: var(--blue); }
+    .kpi-card.purple .value { color: var(--purple); }
+    /* ── Charts ── */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+    .chart-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 18px; }
+    .chart-card canvas { max-height: 300px; }
+    /* ── Tables ── */
+    .section-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 28px; }
+    .table-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table-wrap thead th { background: #f1f3f5; color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 11px 16px; text-align: left; border-bottom: 2px solid var(--border); }
+    .table-wrap tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    .table-wrap tbody tr:last-child { border-bottom: none; }
+    .table-wrap tbody tr:hover { background: #f8f9fa; }
+    .table-wrap tbody td { padding: 10px 16px; }
+    /* ── Tags ── */
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .tag-blue   { background: rgba(59,130,246,0.10);  color: var(--blue); }
+    .tag-purple { background: rgba(139,92,246,0.10);  color: var(--purple); }
+    .tag-won    { background: rgba(40,167,69,0.12);   color: var(--success); }
+    .tag-lost   { background: rgba(220,53,69,0.12);   color: var(--danger); }
+    .tag-open   { background: rgba(99,102,241,0.12);  color: var(--indigo); }
+    .tag-noopp  { background: rgba(108,117,125,0.12); color: var(--muted); }
+    .tag-teal   { background: rgba(13,148,136,0.12);  color: var(--teal); }
+    .kpi-card.teal .value { color: var(--teal); }
+    .coming-soon-banner {
+      background: rgba(13,148,136,0.07);
+      border: 1.5px dashed var(--teal);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 13px;
+      color: var(--teal);
+    }
+    .coming-soon-banner .cs-icon { font-size: 22px; }
+    .coming-soon-banner strong { display: block; font-size: 14px; margin-bottom: 3px; color: var(--navy); }
+    .placeholder-chart {
+      background: repeating-linear-gradient(
+        -45deg,
+        var(--bg),
+        var(--bg) 6px,
+        var(--border) 6px,
+        var(--border) 7px
+      );
+      border-radius: 8px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+    }
+    /* ── Bar cell ── */
+    .bar-cell { display: flex; align-items: center; gap: 8px; }
+    .bar-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; min-width: 60px; }
+    .bar-fill  { height: 5px; border-radius: 3px; background: var(--success); }
+    /* ── Rate colors ── */
+    .rate-high { color: var(--success); font-weight: 700; }
+    .rate-mid  { color: var(--amber);   font-weight: 700; }
+    .rate-low  { color: var(--danger);  font-weight: 700; }
+    .refresh-note { font-size: 11px; color: var(--muted); margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border); }
+    @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } .main { padding: 20px 16px; } }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Solution Engineering Reporting + Trends</h1>
+  <p id="header-sub">Loading live data from Salesforce…</p>
+</div>
+
+<div class="main">
+  <div id="loading"><div class="spinner"></div><br>Loading data from Salesforce…</div>
+  <div id="error-msg"></div>
+
+  <div id="dashboard" style="display:none">
+    <div class="nav-shell">
+      <div class="nav-row" id="fy-row">
+        <span class="nav-label">Year</span>
+        <!-- dynamically populated by JS -->
+      </div>
+      <div class="nav-row" id="period-row">
+        <span class="nav-label">Period</span>
+        <!-- dynamically populated by JS -->
+      </div>
+      <div class="nav-row" id="owner-row">
+        <span class="nav-label">SE</span>
+        <div class="btn-track">
+          <button class="o-btn active" onclick="setOwner('all',this)">Both</button>
+          <button class="o-btn" onclick="setOwner('Michaël Vasseur',this)">Michaël</button>
+          <button class="o-btn" onclick="setOwner('Willow Turano',this)">Willow</button>
+        </div>
+      </div>
+      <div class="nav-row" id="view-row">
+        <span class="nav-label">View</span>
+        <div class="btn-track">
+          <button class="v-btn active" onclick="setView('overview',this)">Overview</button>
+          <button class="v-btn" onclick="setView('opp',this)">Opp Status</button>
+          <button class="v-btn" onclick="setView('role',this)">By Role</button>
+          <span class="nav-sep"></span>
+          <button class="s-btn" onclick="setView('reseller',this)">Reseller</button>
+          <button class="s-btn" onclick="setView('premium',this)">Premium</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ OVERVIEW ═══════════════ -->
+    <div id="view-overview" class="tab-panel active">
+      <div class="kpi-grid" id="kpi-quarterly"></div>
+      <!-- Quarterly charts (shown when period = All FY2026) -->
+      <div id="quarterly-charts">
+        <div class="chart-grid">
+          <div class="chart-card"><h3 id="lbl-volume">Total Tickets by Fiscal Quarter</h3><canvas id="chart-q-volume"></canvas></div>
+          <div class="chart-card"><h3 id="lbl-winrate">Win Rate % by Fiscal Quarter</h3><canvas id="chart-q-winrate"></canvas></div>
+        </div>
+        <div class="chart-card" style="margin-bottom:24px">
+          <h3>Median Resolution Time (hrs)</h3>
+          <canvas id="chart-q-resolution" style="max-height:220px"></canvas>
+        </div>
+      </div>
+      <!-- Monthly charts (shown when specific FQ selected) -->
+      <div id="monthly-charts" style="display:none">
+        <div class="chart-grid">
+          <div class="chart-card"><h3>Monthly Ticket Volume</h3><canvas id="chart-m-volume"></canvas></div>
+          <div class="chart-card"><h3>Monthly Win Rate %</h3><canvas id="chart-m-winrate"></canvas></div>
+        </div>
+      </div>
+      <div class="section-label" id="detail-label">Quarterly Detail</div>
+      <div class="table-wrap" id="table-quarterly-wrap"><table id="table-quarterly">
+        <thead><tr><th>Fiscal Quarter</th><th>Owner</th><th>Total</th><th>With Opp</th><th>Won</th><th>Lost</th><th>Win Rate</th><th>Won:Lost</th><th>Median Res. (hrs)</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="table-wrap" id="table-monthly-wrap" style="display:none"><table id="table-monthly">
+        <thead><tr><th>Month</th><th>Fiscal Quarter</th><th>Owner</th><th>Total</th><th>With Opp</th><th>Won</th><th>Lost</th><th>Win Rate</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- ═══════════════ OPP STATUS BREAKDOWN ═══════════════ -->
+    <div id="view-opp" class="tab-panel">
+      <div class="kpi-grid" id="kpi-opp"></div>
+      <div class="chart-card" style="margin-bottom:24px">
+        <h3 id="lbl-opp-stacked">Opp Status Breakdown (stacked by category)</h3>
+        <canvas id="chart-opp-stacked" style="max-height:200px"></canvas>
+      </div>
+      <div class="section-label">Opp Stage Detail</div>
+      <div class="table-wrap"><table id="table-opp-breakdown">
+        <thead><tr><th>Owner</th><th>Opp Category</th><th>Opp Stage</th><th>Ticket Count</th><th>% of Owner Total</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="refresh-note">Data pulled directly from Salesforce via sf CLI. Filters: Record Type = Solution Engineer Request, Owner = MV or WT, Assigned within selected fiscal year. Opportunity stage reflects live SFDC data at time of last refresh.</p>
+    </div>
+
+    <!-- ═══════════════ BY OPP OWNER ROLE ═══════════════ -->
+    <div id="view-role" class="tab-panel">
+      <div class="kpi-grid" id="kpi-role"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Ticket Volume by Role Segment</h3><canvas id="chart-role-volume"></canvas></div>
+        <div class="chart-card"><h3>Win Rate % by Role Segment</h3><canvas id="chart-role-winrate"></canvas></div>
+      </div>
+      <div class="chart-card" style="margin-bottom:24px">
+        <h3>MRR Closed by Role Segment</h3>
+        <canvas id="chart-role-mrr" style="max-height:240px"></canvas>
+      </div>
+      <div class="section-label">Role Segment Detail</div>
+      <div class="table-wrap"><table id="table-role">
+        <thead><tr><th>Role Segment</th><th>Owner</th><th>Tickets</th><th>Won</th><th>Lost</th><th>Open</th><th>Win Rate</th><th>MRR Closed</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+    <!-- ═══════════════ RESELLER TICKETS ═══════════════ -->
+    <div id="tab-reseller" class="tab-panel">
+
+      <div id="reseller-banner" class="coming-soon-banner" style="background:rgba(245,158,11,0.07);border-color:var(--amber);color:#b45309">
+        <div id="reseller-banner-text" style="flex:1">
+          <strong style="color:var(--navy)">Example data — link reseller opps in SFDC to activate live tracking</strong>
+          KPIs and charts below use illustrative data. Once you link reseller opportunities to the tickets in Salesforce
+          and run the Python script, this tab will populate with live figures automatically.
+        </div>
+      </div>
+
+      <!-- 6-card KPI row -->
+      <div class="kpi-grid" id="kpi-reseller" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))"></div>
+
+      <!-- Charts -->
+      <div class="chart-grid" style="margin-bottom:24px">
+        <div class="chart-card">
+          <h3>Client Migration Status — Top Partners</h3>
+          <canvas id="chart-reseller-status" style="max-height:340px"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Forecasted vs Closed MRR — Top Partners</h3>
+          <canvas id="chart-reseller-mrr" style="max-height:340px"></canvas>
+        </div>
+      </div>
+
+      <!-- Partner table -->
+      <div class="section-label">Partner Detail</div>
+      <div class="table-wrap">
+        <table id="table-reseller">
+          <thead>
+            <tr>
+              <th>Reseller Partner</th>
+              <th>SE</th>
+              <th>Tickets</th>
+              <th>Total Clients</th>
+              <th>Migrated</th>
+              <th>To Migrate</th>
+              <th>Lost</th>
+              <th>Migration Rate</th>
+              <th>Forecast MRR</th>
+              <th>Current MRR</th>
+            </tr>
+          </thead>
+          <tbody id="reseller-tbody"></tbody>
+          <tfoot id="reseller-tfoot" style="background:#f1f3f5;font-weight:700;font-size:12px"></tfoot>
+        </table>
+      </div>
+
+      <p class="refresh-note">
+        <strong>To activate live data:</strong>
+        (1) Link reseller opportunities to the ~84 reseller tickets in SFDC (Account__r.Type = 'Reseller').
+        (2) Run <code>refresh-se-dashboard.py</code> — the reseller SOQL query will pull live data and replace the example figures above.
+        Migration Rate = Closed Won ÷ Total Clients. Win Rate = Closed Won ÷ (Won + Lost).
+      </p>
+    </div>
+
+    <!-- ═══════════════ PREMIUM TICKETS ═══════════════ -->
+    <div id="tab-premium" class="tab-panel">
+      <div class="kpi-grid" id="kpi-premium"></div>
+      <div class="section-label">Open Premium Pilot Tickets</div>
+      <div class="table-wrap"><table id="table-premium">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Owner</th>
+            <th>Status</th>
+            <th>Opportunity</th>
+            <th>Opp Stage</th>
+            <th>Opp Amount</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="refresh-note">Filters: Record Type = Solution Engineer Request · Status = New or In Progress · Other Integration Type Details = Premium Pilot · Owners = MV + WT · All time. Data pulled live from Salesforce.</p>
+    </div>
+
+  </div><!-- /dashboard -->
+</div>
+
+<script>
+// ─── Pre-baked data (injected by refresh-se-dashboard.py) ────────────────────
+const PRELOADED = {"monthly": [{"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-07-01", "TOTAL_TICKETS": 2, "NO_OPP": 0, "WITH_OPP": 2, "WON": 2, "LOST": 0, "WIN_RATE_PCT": 100.0, "LOST_RATE_PCT": 0.0}, {"OWNER": "Willow Turano", "MONTH": "2025-07-01", "TOTAL_TICKETS": 25, "NO_OPP": 0, "WITH_OPP": 25, "WON": 20, "LOST": 3, "WIN_RATE_PCT": 80.0, "LOST_RATE_PCT": 12.0}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-08-01", "TOTAL_TICKETS": 6, "NO_OPP": 0, "WITH_OPP": 6, "WON": 4, "LOST": 2, "WIN_RATE_PCT": 66.7, "LOST_RATE_PCT": 33.3}, {"OWNER": "Willow Turano", "MONTH": "2025-08-01", "TOTAL_TICKETS": 5, "NO_OPP": 0, "WITH_OPP": 5, "WON": 2, "LOST": 2, "WIN_RATE_PCT": 40.0, "LOST_RATE_PCT": 40.0}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-09-01", "TOTAL_TICKETS": 22, "NO_OPP": 0, "WITH_OPP": 22, "WON": 16, "LOST": 3, "WIN_RATE_PCT": 72.7, "LOST_RATE_PCT": 13.6}, {"OWNER": "Willow Turano", "MONTH": "2025-09-01", "TOTAL_TICKETS": 42, "NO_OPP": 2, "WITH_OPP": 40, "WON": 32, "LOST": 6, "WIN_RATE_PCT": 80.0, "LOST_RATE_PCT": 15.0}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-10-01", "TOTAL_TICKETS": 41, "NO_OPP": 4, "WITH_OPP": 37, "WON": 26, "LOST": 8, "WIN_RATE_PCT": 70.3, "LOST_RATE_PCT": 21.6}, {"OWNER": "Willow Turano", "MONTH": "2025-10-01", "TOTAL_TICKETS": 42, "NO_OPP": 6, "WITH_OPP": 36, "WON": 26, "LOST": 7, "WIN_RATE_PCT": 72.2, "LOST_RATE_PCT": 19.4}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-11-01", "TOTAL_TICKETS": 59, "NO_OPP": 12, "WITH_OPP": 47, "WON": 31, "LOST": 14, "WIN_RATE_PCT": 66.0, "LOST_RATE_PCT": 29.8}, {"OWNER": "Willow Turano", "MONTH": "2025-11-01", "TOTAL_TICKETS": 8, "NO_OPP": 1, "WITH_OPP": 7, "WON": 4, "LOST": 1, "WIN_RATE_PCT": 57.1, "LOST_RATE_PCT": 14.3}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2025-12-01", "TOTAL_TICKETS": 14, "NO_OPP": 2, "WITH_OPP": 12, "WON": 10, "LOST": 1, "WIN_RATE_PCT": 83.3, "LOST_RATE_PCT": 8.3}, {"OWNER": "Willow Turano", "MONTH": "2025-12-01", "TOTAL_TICKETS": 64, "NO_OPP": 5, "WITH_OPP": 59, "WON": 47, "LOST": 8, "WIN_RATE_PCT": 79.7, "LOST_RATE_PCT": 13.6}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2026-01-01", "TOTAL_TICKETS": 31, "NO_OPP": 2, "WITH_OPP": 29, "WON": 23, "LOST": 3, "WIN_RATE_PCT": 79.3, "LOST_RATE_PCT": 10.3}, {"OWNER": "Willow Turano", "MONTH": "2026-01-01", "TOTAL_TICKETS": 40, "NO_OPP": 4, "WITH_OPP": 36, "WON": 24, "LOST": 10, "WIN_RATE_PCT": 66.7, "LOST_RATE_PCT": 27.8}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2026-02-01", "TOTAL_TICKETS": 13, "NO_OPP": 1, "WITH_OPP": 12, "WON": 6, "LOST": 5, "WIN_RATE_PCT": 50.0, "LOST_RATE_PCT": 41.7}, {"OWNER": "Willow Turano", "MONTH": "2026-02-01", "TOTAL_TICKETS": 30, "NO_OPP": 2, "WITH_OPP": 28, "WON": 17, "LOST": 6, "WIN_RATE_PCT": 60.7, "LOST_RATE_PCT": 21.4}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2026-03-01", "TOTAL_TICKETS": 27, "NO_OPP": 2, "WITH_OPP": 24, "WON": 12, "LOST": 4, "WIN_RATE_PCT": 50.0, "LOST_RATE_PCT": 16.7}, {"OWNER": "Willow Turano", "MONTH": "2026-03-01", "TOTAL_TICKETS": 42, "NO_OPP": 3, "WITH_OPP": 39, "WON": 23, "LOST": 8, "WIN_RATE_PCT": 59.0, "LOST_RATE_PCT": 20.5}, {"OWNER": "Micha\u00ebl Vasseur", "MONTH": "2026-04-01", "TOTAL_TICKETS": 89, "NO_OPP": 10, "WITH_OPP": 65, "WON": 50, "LOST": 5, "WIN_RATE_PCT": 76.9, "LOST_RATE_PCT": 7.7}, {"OWNER": "Willow Turano", "MONTH": "2026-04-01", "TOTAL_TICKETS": 71, "NO_OPP": 4, "WITH_OPP": 52, "WON": 32, "LOST": 8, "WIN_RATE_PCT": 61.5, "LOST_RATE_PCT": 15.4}], "quarterly": [{"OWNER": "Micha\u00ebl Vasseur", "FISCAL_QUARTER": "FQ1 FY2026", "TOTAL_TICKETS": 2, "WITH_OPP": 2, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 0, "WON": 2, "LOST": 0, "WIN_RATE_PCT": 100.0, "MEDIAN_RESOLUTION_HRS": 21.09}, {"OWNER": "Willow Turano", "FISCAL_QUARTER": "FQ1 FY2026", "TOTAL_TICKETS": 25, "WITH_OPP": 25, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 0, "WON": 20, "LOST": 3, "WIN_RATE_PCT": 80.0, "MEDIAN_RESOLUTION_HRS": 4.175}, {"OWNER": "Micha\u00ebl Vasseur", "FISCAL_QUARTER": "FQ2 FY2026", "TOTAL_TICKETS": 69, "WITH_OPP": 65, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 4, "WON": 46, "LOST": 13, "WIN_RATE_PCT": 70.8, "MEDIAN_RESOLUTION_HRS": 29.75}, {"OWNER": "Willow Turano", "FISCAL_QUARTER": "FQ2 FY2026", "TOTAL_TICKETS": 89, "WITH_OPP": 81, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 8, "WON": 60, "LOST": 15, "WIN_RATE_PCT": 74.1, "MEDIAN_RESOLUTION_HRS": 312.38}, {"OWNER": "Micha\u00ebl Vasseur", "FISCAL_QUARTER": "FQ3 FY2026", "TOTAL_TICKETS": 104, "WITH_OPP": 88, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 16, "WON": 64, "LOST": 18, "WIN_RATE_PCT": 72.7, "MEDIAN_RESOLUTION_HRS": 45.8}, {"OWNER": "Willow Turano", "FISCAL_QUARTER": "FQ3 FY2026", "TOTAL_TICKETS": 112, "WITH_OPP": 102, "OPEN_WITH_OPP": 0, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 10, "WON": 75, "LOST": 19, "WIN_RATE_PCT": 73.5, "MEDIAN_RESOLUTION_HRS": 300.22}, {"OWNER": "Micha\u00ebl Vasseur", "FISCAL_QUARTER": "FQ4 FY2026", "TOTAL_TICKETS": 129, "WITH_OPP": 101, "OPEN_WITH_OPP": 13, "OPEN_NO_OPP": 2, "CLOSED_NO_OPP": 13, "WON": 68, "LOST": 14, "WIN_RATE_PCT": 67.3, "MEDIAN_RESOLUTION_HRS": 20.955}, {"OWNER": "Willow Turano", "FISCAL_QUARTER": "FQ4 FY2026", "TOTAL_TICKETS": 143, "WITH_OPP": 119, "OPEN_WITH_OPP": 15, "OPEN_NO_OPP": 0, "CLOSED_NO_OPP": 9, "WON": 72, "LOST": 22, "WIN_RATE_PCT": 60.5, "MEDIAN_RESOLUTION_HRS": 103.51}], "oppBreak": [{"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 45}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 180}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 35}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 6}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Discovery", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Implementation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "MQL", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Negotiation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Pending PR", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 7}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 12}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Reseller Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 59}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 227}, {"OWNER": "Willow Turano", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 27}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 4}, {"OWNER": "Willow Turano", "OPP_STAGE": "Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 5}, {"OWNER": "Willow Turano", "OPP_STAGE": "Discovery", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 6}, {"OWNER": "Willow Turano", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 5}, {"OWNER": "Willow Turano", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Implementation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Negotiation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Pending PR", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 9}, {"OWNER": "Willow Turano", "OPP_STAGE": "Proposal", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 14}, {"OWNER": "Willow Turano", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Reseller Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}], "roleSegs": [{"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 159, "WON": 106, "LOST": 22, "OPEN": 31, "WIN_RATE_PCT": 66.7, "MRR_CLOSED": 27677}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 39, "WON": 23, "LOST": 11, "OPEN": 5, "WIN_RATE_PCT": 59.0, "MRR_CLOSED": 17765}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 29, "WON": 20, "LOST": 5, "OPEN": 4, "WIN_RATE_PCT": 69.0, "MRR_CLOSED": 2528}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 29, "WON": 23, "LOST": 4, "OPEN": 2, "WIN_RATE_PCT": 79.3, "MRR_CLOSED": 23486}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 48, "WON": 8, "LOST": 3, "OPEN": 37, "WIN_RATE_PCT": 16.7, "MRR_CLOSED": 800}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 182, "WON": 124, "LOST": 23, "OPEN": 35, "WIN_RATE_PCT": 68.1, "MRR_CLOSED": 40152}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 62, "WON": 41, "LOST": 12, "OPEN": 9, "WIN_RATE_PCT": 66.1, "MRR_CLOSED": 25092}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 34, "WON": 21, "LOST": 8, "OPEN": 5, "WIN_RATE_PCT": 61.8, "MRR_CLOSED": 3025}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 37, "WON": 23, "LOST": 10, "OPEN": 4, "WIN_RATE_PCT": 62.2, "MRR_CLOSED": 17535}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 54, "WON": 18, "LOST": 6, "OPEN": 30, "WIN_RATE_PCT": 33.3, "MRR_CLOSED": 6856}], "oppBreakByFQ": {"FQ1 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 2}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 20}, {"OWNER": "Willow Turano", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}], "FQ2 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 13}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 46}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 4}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Negotiation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 15}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 60}, {"OWNER": "Willow Turano", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 8}, {"OWNER": "Willow Turano", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}], "FQ3 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 18}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 64}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 16}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "MQL", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 4}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 19}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 75}, {"OWNER": "Willow Turano", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 10}, {"OWNER": "Willow Turano", "OPP_STAGE": "Implementation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Negotiation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Proposal", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Willow Turano", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Reseller Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}], "FQ4 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 14}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 68}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 15}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 3}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 5}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Discovery", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Implementation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Negotiation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Pending PR", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 7}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 5}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Micha\u00ebl Vasseur", "OPP_STAGE": "Reseller Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Lost", "OPP_CATEGORY": "Closed Lost", "TICKET_COUNT": 22}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Closed Won", "TICKET_COUNT": 72}, {"OWNER": "Willow Turano", "OPP_STAGE": "No Opp Attached", "OPP_CATEGORY": "No Opp Attached", "TICKET_COUNT": 9}, {"OWNER": "Willow Turano", "OPP_STAGE": "Closed Won", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 4}, {"OWNER": "Willow Turano", "OPP_STAGE": "Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 5}, {"OWNER": "Willow Turano", "OPP_STAGE": "Discovery", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 6}, {"OWNER": "Willow Turano", "OPP_STAGE": "Discovery/Engaged", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 4}, {"OWNER": "Willow Turano", "OPP_STAGE": "Evaluation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Willow Turano", "OPP_STAGE": "Implementation", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 2}, {"OWNER": "Willow Turano", "OPP_STAGE": "Pending PR", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 9}, {"OWNER": "Willow Turano", "OPP_STAGE": "Prospecting", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 6}, {"OWNER": "Willow Turano", "OPP_STAGE": "Qualified", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}, {"OWNER": "Willow Turano", "OPP_STAGE": "Reseller Commit", "OPP_CATEGORY": "Open / In Progress", "TICKET_COUNT": 1}]}, "roleSegsByFQ": {"FQ1 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 1, "WON": 1, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 44}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 1, "WON": 1, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 680}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 14, "WON": 11, "LOST": 1, "OPEN": 2, "WIN_RATE_PCT": 78.6, "MRR_CLOSED": 2697}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 4, "WON": 4, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 1616}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 2, "WON": 1, "LOST": 1, "OPEN": 0, "WIN_RATE_PCT": 50.0, "MRR_CLOSED": 180}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 3, "WON": 2, "LOST": 1, "OPEN": 0, "WIN_RATE_PCT": 66.7, "MRR_CLOSED": 1121}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 2, "WON": 2, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 498}], "FQ2 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 38, "WON": 27, "LOST": 6, "OPEN": 5, "WIN_RATE_PCT": 71.1, "MRR_CLOSED": 5888}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 9, "WON": 5, "LOST": 4, "OPEN": 0, "WIN_RATE_PCT": 55.6, "MRR_CLOSED": 3309}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 9, "WON": 7, "LOST": 1, "OPEN": 1, "WIN_RATE_PCT": 77.8, "MRR_CLOSED": 541}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 6, "WON": 4, "LOST": 2, "OPEN": 0, "WIN_RATE_PCT": 66.7, "MRR_CLOSED": 2836}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 7, "WON": 3, "LOST": 0, "OPEN": 4, "WIN_RATE_PCT": 42.9, "MRR_CLOSED": 162}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 49, "WON": 37, "LOST": 6, "OPEN": 6, "WIN_RATE_PCT": 75.5, "MRR_CLOSED": 9676}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 14, "WON": 8, "LOST": 6, "OPEN": 0, "WIN_RATE_PCT": 57.1, "MRR_CLOSED": 10809}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 4, "WON": 4, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 540}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 6, "WON": 5, "LOST": 1, "OPEN": 0, "WIN_RATE_PCT": 83.3, "MRR_CLOSED": 5708}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 16, "WON": 6, "LOST": 2, "OPEN": 8, "WIN_RATE_PCT": 37.5, "MRR_CLOSED": 1877}], "FQ3 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 56, "WON": 42, "LOST": 10, "OPEN": 4, "WIN_RATE_PCT": 75.0, "MRR_CLOSED": 12122}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 11, "WON": 8, "LOST": 3, "OPEN": 0, "WIN_RATE_PCT": 72.7, "MRR_CLOSED": 6149}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 5, "WON": 2, "LOST": 2, "OPEN": 1, "WIN_RATE_PCT": 40.0, "MRR_CLOSED": 155}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 10, "WON": 9, "LOST": 1, "OPEN": 0, "WIN_RATE_PCT": 90.0, "MRR_CLOSED": 10851}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 22, "WON": 3, "LOST": 2, "OPEN": 17, "WIN_RATE_PCT": 13.6, "MRR_CLOSED": 458}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 58, "WON": 41, "LOST": 10, "OPEN": 7, "WIN_RATE_PCT": 70.7, "MRR_CLOSED": 13546}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 16, "WON": 16, "LOST": 0, "OPEN": 0, "WIN_RATE_PCT": 100.0, "MRR_CLOSED": 9706}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 11, "WON": 9, "LOST": 2, "OPEN": 0, "WIN_RATE_PCT": 81.8, "MRR_CLOSED": 1247}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 10, "WON": 5, "LOST": 5, "OPEN": 0, "WIN_RATE_PCT": 50.0, "MRR_CLOSED": 3462}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 17, "WON": 4, "LOST": 2, "OPEN": 11, "WIN_RATE_PCT": 23.5, "MRR_CLOSED": 641}], "FQ4 FY2026": [{"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 64, "WON": 36, "LOST": 6, "OPEN": 22, "WIN_RATE_PCT": 56.2, "MRR_CLOSED": 9624}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 18, "WON": 9, "LOST": 4, "OPEN": 5, "WIN_RATE_PCT": 50.0, "MRR_CLOSED": 7627}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 15, "WON": 11, "LOST": 2, "OPEN": 2, "WIN_RATE_PCT": 73.3, "MRR_CLOSED": 1832}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 13, "WON": 10, "LOST": 1, "OPEN": 2, "WIN_RATE_PCT": 76.9, "MRR_CLOSED": 9799}, {"OWNER": "Micha\u00ebl Vasseur", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 19, "WON": 2, "LOST": 1, "OPEN": 16, "WIN_RATE_PCT": 10.5, "MRR_CLOSED": 180}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Gusto Pro", "TOTAL_TICKETS": 61, "WON": 35, "LOST": 6, "OPEN": 20, "WIN_RATE_PCT": 57.4, "MRR_CLOSED": 14234}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Mid-Market", "TOTAL_TICKETS": 28, "WON": 13, "LOST": 6, "OPEN": 9, "WIN_RATE_PCT": 46.4, "MRR_CLOSED": 2961}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Core Sales", "TOTAL_TICKETS": 17, "WON": 7, "LOST": 5, "OPEN": 5, "WIN_RATE_PCT": 41.2, "MRR_CLOSED": 1058}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Biz Dev", "TOTAL_TICKETS": 18, "WON": 11, "LOST": 3, "OPEN": 4, "WIN_RATE_PCT": 61.1, "MRR_CLOSED": 7244}, {"OWNER": "Willow Turano", "ROLE_SEGMENT": "Other", "TOTAL_TICKETS": 19, "WON": 6, "LOST": 2, "OPEN": 11, "WIN_RATE_PCT": 31.6, "MRR_CLOSED": 3841}]}, "premium": [{"TICKET": "Ticket-00867372", "OWNER": "Willow Turano", "STATUS": "New", "OPP_NAME": "Home Defense USA - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 1082.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00867366", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Burkedale LLC - Winback", "OPP_STAGE": "Commit", "AMOUNT": 202.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00867221", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "IMC Property Management - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 884.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00867207", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Hall Tree Inc. - New Business", "OPP_STAGE": "Qualified", "AMOUNT": 444.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00867172", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "LeafLabs - Winback", "OPP_STAGE": "Discovery", "AMOUNT": 1346.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866990", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "Bright Wealth Management - New Business", "OPP_STAGE": "Prospecting", "AMOUNT": 290.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866886", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "Story and Science Co. - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 444.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866810", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Yost Cleaning - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 576.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866763", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "Hovercraft - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 1126.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866762", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Microtime Computers Inc. - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 818.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866757", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "PACIFIC STATE CORPORATION - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 774.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866748", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Network by Design - New Business", "OPP_STAGE": "Pending PR", "AMOUNT": 862.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866681", "OWNER": "Willow Turano", "STATUS": "In Progress", "OPP_NAME": "SeSolutions Inc. - Winback", "OPP_STAGE": "Commit", "AMOUNT": 290.0, "CREATED_FQ": "FQ4 FY2026"}, {"TICKET": "Ticket-00866576", "OWNER": "Micha\u00ebl Vasseur", "STATUS": "New", "OPP_NAME": "Center Pointe Community Church of the Nazarene - New Business", "OPP_STAGE": "Commit", "AMOUNT": 1088.0, "CREATED_FQ": "FQ4 FY2026"}], "reseller": [{"PARTNER": "Larson Gross", "OWNER": "Both", "TICKETS": 6, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 326, "CLIENTS_MIGRATED": 5, "CLIENTS_TO_MIGRATE": 321, "CLIENTS_LOST": 0, "FORECASTED_MRR": 75000.0, "OPPORTUNITY_MRR": 1686.8}, {"PARTNER": "EisnerAmper LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 4, "NO_OPP": 0, "COMPANY_OPP": 3, "TOTAL_CLIENTS": 100, "CLIENTS_MIGRATED": 69, "CLIENTS_TO_MIGRATE": 31, "CLIENTS_LOST": 0, "FORECASTED_MRR": 12000.0, "OPPORTUNITY_MRR": 10807.6}, {"PARTNER": "Citrin Cooperman", "OWNER": "Both", "TICKETS": 3, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 25, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 25, "CLIENTS_LOST": 25, "FORECASTED_MRR": 2500.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Account Sense PLLC", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 35, "CLIENTS_MIGRATED": 33, "CLIENTS_TO_MIGRATE": 2, "CLIENTS_LOST": 0, "FORECASTED_MRR": 5000.0, "OPPORTUNITY_MRR": 4310.1}, {"PARTNER": "Acuity", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 200, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 200, "CLIENTS_LOST": 0, "FORECASTED_MRR": 20000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "American Eagle Consulting and Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 20, "FORECASTED_MRR": 1200.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "BPM LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 2, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Central Oregon Tax", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 100, "CLIENTS_MIGRATED": 76, "CLIENTS_TO_MIGRATE": 24, "CLIENTS_LOST": 0, "FORECASTED_MRR": 6000.0, "OPPORTUNITY_MRR": 5746.75}, {"PARTNER": "CliftonLarsonAllen LLP", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1505, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1505, "CLIENTS_LOST": 5, "FORECASTED_MRR": 52750.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Compass Accounting Group", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 104.0}, {"PARTNER": "Frank, Rimerman + Co. LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 2, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "GLM Inc", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 19, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 19, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Gaslin Accounting, CPAs PC", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 31, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 31, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2635.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Jackson Thornton & Co., P.C.", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 400, "CLIENTS_MIGRATED": 49, "CLIENTS_TO_MIGRATE": 351, "CLIENTS_LOST": 0, "FORECASTED_MRR": 36000.0, "OPPORTUNITY_MRR": 9951.2}, {"PARTNER": "Lutz", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 40, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 40, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Murphy, Murphy & Murphy, Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 6, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 6, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rea & Associates", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 10, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rehmann", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 146, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 146, "CLIENTS_LOST": 1, "FORECASTED_MRR": 10975.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rising Tide Human Resources", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 2, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sorren, Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 300, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 300, "CLIENTS_LOST": 300, "FORECASTED_MRR": 21000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Tanner Accounting", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 272.0, "OPPORTUNITY_MRR": 272.0}, {"PARTNER": "Vail Tax and Accounting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 34, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 33, "CLIENTS_LOST": 29, "FORECASTED_MRR": 3000.0, "OPPORTUNITY_MRR": 103.5}, {"PARTNER": "32 Analytics LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 74.8}, {"PARTNER": "415 CPAs", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 5, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 5, "CLIENTS_LOST": 5, "FORECASTED_MRR": 700.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "A COUPLES TAX INC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Abacus Small Business Accounting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Accountalent", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Aldrich CPAs + Advisors LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 513.6}, {"PARTNER": "Alegria & Company P.S.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Apparatus Contractor Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 199.0}, {"PARTNER": "Ascension CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 10, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Auburndale Bookkeeping & Tax Service", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 5, "CLIENTS_MIGRATED": 5, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 300.0, "OPPORTUNITY_MRR": 345.0}, {"PARTNER": "Avlon Finance", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 2, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 0, "FORECASTED_MRR": 500.0, "OPPORTUNITY_MRR": 147.6}, {"PARTNER": "BTJ Financial Services, Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 23, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 23, "CLIENTS_LOST": 23, "FORECASTED_MRR": 2500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Beaird Harris, PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 44.0}, {"PARTNER": "Blue Bird Consulting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 88.0}, {"PARTNER": "BoldlyGO Career and HR Management", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 312.8}, {"PARTNER": "Bookkeeping by Bonnie", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Books by Zook", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "Boulay Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 15, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 14, "CLIENTS_LOST": 15, "FORECASTED_MRR": 1100.0, "OPPORTUNITY_MRR": 139.4}, {"PARTNER": "Brandon", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "C&J Accounting Services, Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 40, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 40, "CLIENTS_LOST": 0, "FORECASTED_MRR": 3000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Carolyn J Smith, CPA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Cash Flow & Operations, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Cherry Bekaert Advisory LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 595, "CLIENTS_MIGRATED": 30, "CLIENTS_TO_MIGRATE": 565, "CLIENTS_LOST": 0, "FORECASTED_MRR": 60500.0, "OPPORTUNITY_MRR": 3186.3}, {"PARTNER": "Chicagoland CPAs", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Clay Tablet Accounting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Complete Accounting & Tax", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "Complete Bookkeeping & Accounting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Condley & Company", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 559.0}, {"PARTNER": "Core Performance Consulting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Cory W. Johnson, CPA, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 51.85}, {"PARTNER": "Crosslin PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Cubepros", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "DAJ Business Services LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "DAVID WOLF CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 44.0}, {"PARTNER": "Debbie", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 52.0}, {"PARTNER": "Deeth & Co. LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 308.0}, {"PARTNER": "Demystify HR", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Diamond Head Tax Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Eagle Tax Res Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 140.0}, {"PARTNER": "Easy Books Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Elevate LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 2, "CLIENTS_MIGRATED": 2, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 340.0}, {"PARTNER": "Elkhorn Income Tax Service LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 8, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 8, "CLIENTS_LOST": 8, "FORECASTED_MRR": 500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Empower CFO", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 4, "CLIENTS_TO_MIGRATE": 16, "CLIENTS_LOST": 20, "FORECASTED_MRR": 5000.0, "OPPORTUNITY_MRR": 603.9}, {"PARTNER": "Endurium", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Equilibria Bookkeeping, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Gagnon & Associates, CPAs", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 22, "CLIENTS_MIGRATED": 19, "CLIENTS_TO_MIGRATE": 3, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 1035.8}, {"PARTNER": "Good Measure", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 46.75}, {"PARTNER": "Grapp Lerash", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "GreerWalker", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Griffin Resources", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Grupo Recurso", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 54.9}, {"PARTNER": "HR Performance", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "HRextension", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "IABS LLC - Integrated Accounting & Business Solutions", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "ILS", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 470.0}, {"PARTNER": "Imagine New", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 250.0, "OPPORTUNITY_MRR": 568.8}, {"PARTNER": "JCCS, PC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 500, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 500, "CLIENTS_LOST": 0, "FORECASTED_MRR": 4167.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Jamison Hanson LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Jones and Kolb", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "KDP Certified Public Accountants LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "KSDT (Primary)", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Kochenderfer Business Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 91.0}, {"PARTNER": "Kocsis Bookkeeping Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Leading Light Accountancy, PS", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 4, "CLIENTS_TO_MIGRATE": 6, "CLIENTS_LOST": 0, "FORECASTED_MRR": 800.0, "OPPORTUNITY_MRR": 416.9}, {"PARTNER": "Libri Business Services LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Littwin Associates", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Luma Accounting LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Lynddahl Telecom America Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 52.0}, {"PARTNER": "MBD Financial Partners, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 260.0}, {"PARTNER": "Masimore Magnuson & Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 7, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 7, "CLIENTS_LOST": 7, "FORECASTED_MRR": 400.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Maya Tax", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 1, "FORECASTED_MRR": 10000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "McKenzie Duncan Johns CPAs, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 236.0}, {"PARTNER": "Mecham Bookkeeping LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Medical Accounting Service", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Melita Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 15, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 15, "CLIENTS_LOST": 15, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Mesa Network", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Miller CPA PA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Mobile Office Management, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 91.0}, {"PARTNER": "Money Smarts Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 368.0}, {"PARTNER": "My Financial Partner Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Nguyen & Company, CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 171.2}, {"PARTNER": "Noh Hassle Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 35, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 35, "CLIENTS_LOST": 35, "FORECASTED_MRR": 3500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Numbers Matter LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Oakwood Capital Accounting & Tax Advisors LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 116, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 116, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "PennSpring", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 41.4}, {"PARTNER": "Performance Financial Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 159.8}, {"PARTNER": "Pisenti & Brinker LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Pivot Accounting", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Polaris Solutions Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 212.4}, {"PARTNER": "Powell Finance & Income", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Premier Tax Advising & Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 404.0}, {"PARTNER": "PwC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Randolph County Family Crisis Center", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 416.0, "OPPORTUNITY_MRR": 344.0}, {"PARTNER": "Rehash Digital", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 79.0}, {"PARTNER": "Roedl Langford de Kock LP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "SK Tax Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 55, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 55, "CLIENTS_LOST": 0, "FORECASTED_MRR": 4000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Salem Tax Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sancus Tax Inc. dba Noble Pacific Tax Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Stambaugh Ness", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Standing Stone Unlimited", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Strategic HR Partners", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sun Mountain Consulting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sweeney Conrad", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sweetwater Accounting and Tax Solutions", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 54.9}, {"PARTNER": "THCFO Accounting, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "TRP Sumner PLLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 50, "CLIENTS_MIGRATED": 3, "CLIENTS_TO_MIGRATE": 47, "CLIENTS_LOST": 50, "FORECASTED_MRR": 3500.0, "OPPORTUNITY_MRR": 169.4}, {"PARTNER": "Taylor & Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Thompson Greenspon", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "To The Moon And Back, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 104.0}, {"PARTNER": "Trinity Accounting Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Trout CPA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 515.2}, {"PARTNER": "True North Accounting", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 61.0}, {"PARTNER": "Two Roads", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1080.0, "OPPORTUNITY_MRR": 1180.0}, {"PARTNER": "UPA Business Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 500.0}, {"PARTNER": "Unified National Technologies Corporation", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Upside Tax LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "Veronica Kumpf CPA PC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 139.0}, {"PARTNER": "WatersEdge Ministry Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 357.2}, {"PARTNER": "Wegner CPAs", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "West Coast Accounting & Financial Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 77.12}, {"PARTNER": "Whiterock Consulting LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 35.0}, {"PARTNER": "Wilkins Miller, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Windes", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 1, "FORECASTED_MRR": 700.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Withum", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 12049.0}, {"PARTNER": "Wolfe & Associates Property Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 9, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 8, "CLIENTS_LOST": 0, "FORECASTED_MRR": 800.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "Your CFO To GO", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 1580.0}, {"PARTNER": "Zygoon Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "nRhythm", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}], "resellerByFQ": {"FQ1 FY2026": [{"PARTNER": "Account Sense PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 277.5}, {"PARTNER": "BoldlyGO Career and HR Management", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 312.8}, {"PARTNER": "Books by Zook", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "Cash Flow & Operations, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Central Oregon Tax", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 100, "CLIENTS_MIGRATED": 76, "CLIENTS_TO_MIGRATE": 24, "CLIENTS_LOST": 0, "FORECASTED_MRR": 6000.0, "OPPORTUNITY_MRR": 5746.75}, {"PARTNER": "DAVID WOLF CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 44.0}, {"PARTNER": "IABS LLC - Integrated Accounting & Business Solutions", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}], "FQ2 FY2026": [{"PARTNER": "EisnerAmper LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 4, "NO_OPP": 0, "COMPANY_OPP": 3, "TOTAL_CLIENTS": 100, "CLIENTS_MIGRATED": 69, "CLIENTS_TO_MIGRATE": 31, "CLIENTS_LOST": 0, "FORECASTED_MRR": 12000.0, "OPPORTUNITY_MRR": 10807.6}, {"PARTNER": "GLM Inc", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 19, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 19, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Gaslin Accounting, CPAs PC", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 31, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 31, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2635.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "32 Analytics LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 74.8}, {"PARTNER": "Account Sense PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 35, "CLIENTS_MIGRATED": 33, "CLIENTS_TO_MIGRATE": 2, "CLIENTS_LOST": 0, "FORECASTED_MRR": 5000.0, "OPPORTUNITY_MRR": 4032.6}, {"PARTNER": "American Eagle Consulting and Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "BPM LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Blue Bird Consulting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 88.0}, {"PARTNER": "Citrin Cooperman", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Clay Tablet Accounting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "CliftonLarsonAllen LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 5, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 5, "CLIENTS_LOST": 5, "FORECASTED_MRR": 250.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Complete Bookkeeping & Accounting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Condley & Company", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 559.0}, {"PARTNER": "Deeth & Co. LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 308.0}, {"PARTNER": "Eagle Tax Res Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 140.0}, {"PARTNER": "Easy Books Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Good Measure", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 46.75}, {"PARTNER": "Grapp Lerash", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "GreerWalker", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Griffin Resources", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "JCCS, PC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 500, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 500, "CLIENTS_LOST": 0, "FORECASTED_MRR": 4167.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Jackson Thornton & Co., P.C.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 400, "CLIENTS_MIGRATED": 49, "CLIENTS_TO_MIGRATE": 351, "CLIENTS_LOST": 0, "FORECASTED_MRR": 36000.0, "OPPORTUNITY_MRR": 9951.2}, {"PARTNER": "MBD Financial Partners, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 260.0}, {"PARTNER": "Maya Tax", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 1, "FORECASTED_MRR": 10000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "McKenzie Duncan Johns CPAs, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 236.0}, {"PARTNER": "Medical Accounting Service", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Mobile Office Management, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 91.0}, {"PARTNER": "Noh Hassle Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 35, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 35, "CLIENTS_LOST": 35, "FORECASTED_MRR": 3500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "PennSpring", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 41.4}, {"PARTNER": "Performance Financial Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 159.8}, {"PARTNER": "Polaris Solutions Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 212.4}, {"PARTNER": "Powell Finance & Income", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rea & Associates", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 10, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Roedl Langford de Kock LP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "SK Tax Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 55, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 55, "CLIENTS_LOST": 0, "FORECASTED_MRR": 4000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Salem Tax Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sancus Tax Inc. dba Noble Pacific Tax Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Stambaugh Ness", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sun Mountain Consulting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sweetwater Accounting and Tax Solutions", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 54.9}, {"PARTNER": "THCFO Accounting, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "To The Moon And Back, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 104.0}, {"PARTNER": "Trout CPA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 515.2}, {"PARTNER": "True North Accounting", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 61.0}, {"PARTNER": "UPA Business Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 500.0}, {"PARTNER": "Unified National Technologies Corporation", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Windes", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 1, "FORECASTED_MRR": 700.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Withum", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 12049.0}, {"PARTNER": "Wolfe & Associates Property Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 9, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 8, "CLIENTS_LOST": 0, "FORECASTED_MRR": 800.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "Your CFO To GO", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 1580.0}], "FQ3 FY2026": [{"PARTNER": "Larson Gross", "OWNER": "Both", "TICKETS": 4, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 6, "CLIENTS_MIGRATED": 5, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 0, "FORECASTED_MRR": 30000.0, "OPPORTUNITY_MRR": 1686.8}, {"PARTNER": "Citrin Cooperman", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 25, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 25, "CLIENTS_LOST": 25, "FORECASTED_MRR": 2500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Compass Accounting Group", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 104.0}, {"PARTNER": "Frank, Rimerman + Co. LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 2, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rising Tide Human Resources", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 2, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sorren, Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 300, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 300, "CLIENTS_LOST": 300, "FORECASTED_MRR": 21000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Vail Tax and Accounting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 34, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 33, "CLIENTS_LOST": 29, "FORECASTED_MRR": 3000.0, "OPPORTUNITY_MRR": 103.5}, {"PARTNER": "A COUPLES TAX INC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Abacus Small Business Accounting LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Acuity", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 200, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 200, "CLIENTS_LOST": 0, "FORECASTED_MRR": 20000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Aldrich CPAs + Advisors LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 513.6}, {"PARTNER": "American Eagle Consulting and Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 20, "FORECASTED_MRR": 1200.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Apparatus Contractor Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 199.0}, {"PARTNER": "Ascension CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 10, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Auburndale Bookkeeping & Tax Service", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 5, "CLIENTS_MIGRATED": 5, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 300.0, "OPPORTUNITY_MRR": 345.0}, {"PARTNER": "BPM LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "BTJ Financial Services, Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 23, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 23, "CLIENTS_LOST": 23, "FORECASTED_MRR": 2500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Beaird Harris, PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 44.0}, {"PARTNER": "Brandon", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Carolyn J Smith, CPA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 49.5}, {"PARTNER": "Central Oregon Tax", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 100, "CLIENTS_MIGRATED": 76, "CLIENTS_TO_MIGRATE": 24, "CLIENTS_LOST": 0, "FORECASTED_MRR": 6000.0, "OPPORTUNITY_MRR": 5746.75}, {"PARTNER": "Chicagoland CPAs", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "CliftonLarsonAllen LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1500, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1500, "CLIENTS_LOST": 0, "FORECASTED_MRR": 52500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Complete Accounting & Tax", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 92.0}, {"PARTNER": "Cory W. Johnson, CPA, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 51.85}, {"PARTNER": "DAJ Business Services LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Debbie", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 52.0}, {"PARTNER": "Elevate LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 2, "CLIENTS_MIGRATED": 2, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 340.0}, {"PARTNER": "Elkhorn Income Tax Service LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 8, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 8, "CLIENTS_LOST": 8, "FORECASTED_MRR": 500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Empower CFO", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 4, "CLIENTS_TO_MIGRATE": 16, "CLIENTS_LOST": 20, "FORECASTED_MRR": 5000.0, "OPPORTUNITY_MRR": 603.9}, {"PARTNER": "Endurium", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Equilibria Bookkeeping, LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Gagnon & Associates, CPAs", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 22, "CLIENTS_MIGRATED": 19, "CLIENTS_TO_MIGRATE": 3, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 1035.8}, {"PARTNER": "Grupo Recurso", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 54.9}, {"PARTNER": "ILS", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 470.0}, {"PARTNER": "Jackson Thornton & Co., P.C.", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 400, "CLIENTS_MIGRATED": 49, "CLIENTS_TO_MIGRATE": 351, "CLIENTS_LOST": 0, "FORECASTED_MRR": 36000.0, "OPPORTUNITY_MRR": 9951.2}, {"PARTNER": "Jamison Hanson LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "KDP Certified Public Accountants LLP", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "KSDT (Primary)", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Kochenderfer Business Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 91.0}, {"PARTNER": "Kocsis Bookkeeping Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Leading Light Accountancy, PS", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 4, "CLIENTS_TO_MIGRATE": 6, "CLIENTS_LOST": 0, "FORECASTED_MRR": 800.0, "OPPORTUNITY_MRR": 416.9}, {"PARTNER": "Luma Accounting LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Lynddahl Telecom America Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 52.0}, {"PARTNER": "Masimore Magnuson & Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 7, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 7, "CLIENTS_LOST": 7, "FORECASTED_MRR": 400.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Melita Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 15, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 15, "CLIENTS_LOST": 15, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Mesa Network", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Miller CPA PA", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Nguyen & Company, CPA", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 171.2}, {"PARTNER": "Numbers Matter LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Pisenti & Brinker LLP", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "PwC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rehash Digital", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 79.0}, {"PARTNER": "Rehmann", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 1, "FORECASTED_MRR": 100.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Strategic HR Partners", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Sweeney Conrad", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "TRP Sumner PLLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 50, "CLIENTS_MIGRATED": 3, "CLIENTS_TO_MIGRATE": 47, "CLIENTS_LOST": 50, "FORECASTED_MRR": 3500.0, "OPPORTUNITY_MRR": 169.4}, {"PARTNER": "Thompson Greenspon", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Upside Tax LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 55.0}, {"PARTNER": "WatersEdge Ministry Services", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 357.2}, {"PARTNER": "Wegner CPAs", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "nRhythm", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}], "FQ4 FY2026": [{"PARTNER": "Larson Gross", "OWNER": "Both", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 326, "CLIENTS_MIGRATED": 5, "CLIENTS_TO_MIGRATE": 321, "CLIENTS_LOST": 0, "FORECASTED_MRR": 75000.0, "OPPORTUNITY_MRR": 1044.8}, {"PARTNER": "Lutz", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 40, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 40, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Murphy, Murphy & Murphy, Inc.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 6, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 6, "CLIENTS_LOST": 0, "FORECASTED_MRR": 600.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Tanner Accounting", "OWNER": "Willow Turano", "TICKETS": 2, "NO_OPP": 0, "COMPANY_OPP": 2, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 272.0, "OPPORTUNITY_MRR": 272.0}, {"PARTNER": "415 CPAs", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 5, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 5, "CLIENTS_LOST": 5, "FORECASTED_MRR": 700.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Accountalent", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Acuity", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 200, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 200, "CLIENTS_LOST": 0, "FORECASTED_MRR": 20000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Alegria & Company P.S.", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Avlon Finance", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 2, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 1, "CLIENTS_LOST": 0, "FORECASTED_MRR": 500.0, "OPPORTUNITY_MRR": 147.6}, {"PARTNER": "Bookkeeping by Bonnie", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Boulay Group", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 15, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 14, "CLIENTS_LOST": 15, "FORECASTED_MRR": 1100.0, "OPPORTUNITY_MRR": 139.4}, {"PARTNER": "C&J Accounting Services, Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 40, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 40, "CLIENTS_LOST": 0, "FORECASTED_MRR": 3000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Cherry Bekaert Advisory LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 595, "CLIENTS_MIGRATED": 30, "CLIENTS_TO_MIGRATE": 565, "CLIENTS_LOST": 0, "FORECASTED_MRR": 60500.0, "OPPORTUNITY_MRR": 3186.3}, {"PARTNER": "Core Performance Consulting", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Crosslin PLLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Cubepros", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Demystify HR", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Diamond Head Tax Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "HR Performance", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "HRextension", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Imagine New", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 1, "CLIENTS_MIGRATED": 1, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 250.0, "OPPORTUNITY_MRR": 568.8}, {"PARTNER": "Jones and Kolb", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Libri Business Services LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Littwin Associates", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Mecham Bookkeeping LLC", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Money Smarts Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 368.0}, {"PARTNER": "My Financial Partner Inc", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Oakwood Capital Accounting & Tax Advisors LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 116, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 116, "CLIENTS_LOST": 0, "FORECASTED_MRR": 2000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Pivot Accounting", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Premier Tax Advising & Bookkeeping", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 404.0}, {"PARTNER": "Randolph County Family Crisis Center", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 416.0, "OPPORTUNITY_MRR": 344.0}, {"PARTNER": "Rea & Associates", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 10, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 10, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Rehmann", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 145, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 145, "CLIENTS_LOST": 0, "FORECASTED_MRR": 10875.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Standing Stone Unlimited", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Taylor & Associates", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Trinity Accounting Group", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1500.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Two Roads", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1080.0, "OPPORTUNITY_MRR": 1180.0}, {"PARTNER": "Veronica Kumpf CPA PC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 139.0}, {"PARTNER": "West Coast Accounting & Financial Services", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 77.12}, {"PARTNER": "Whiterock Consulting LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 1, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 35.0}, {"PARTNER": "Wilkins Miller, LLC", "OWNER": "Willow Turano", "TICKETS": 1, "NO_OPP": 1, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 0, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 0, "CLIENTS_LOST": 0, "FORECASTED_MRR": 0.0, "OPPORTUNITY_MRR": 0.0}, {"PARTNER": "Zygoon Inc", "OWNER": "Micha\u00ebl Vasseur", "TICKETS": 1, "NO_OPP": 0, "COMPANY_OPP": 0, "TOTAL_CLIENTS": 20, "CLIENTS_MIGRATED": 0, "CLIENTS_TO_MIGRATE": 20, "CLIENTS_LOST": 0, "FORECASTED_MRR": 1000.0, "OPPORTUNITY_MRR": 0.0}]}, "refreshedAt": "April 29, 2026 at 7:01 PM"}; // INJECTED_BY_REFRESH_SCRIPT
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+const REDASH = 'https://gusto.redash.io';
+const QUERIES = {
+  monthly:   { id: 161302, key: 'm3MbJBXMIQbGkkK2tHI7607MhqcrX3aXTjk8J7nW' },
+  quarterly: { id: 161303, key: '2ZnxiaY7oCuaDjN7iRr2UWJPjIsMR8QcmsuM60M3' },
+  oppBreak:  { id: 161304, key: 'zdl1K79jTLA2NVkL3OmT0YdoXDz0SjhEU1RVK8oc' },
+  roleSegs:  { id: 161305, key: 'YczpgxEy7BlDAQK74yH5V0wcFNmE5lrHOKCA2hNg' },
+};
+
+// ─── Chart palette ───────────────────────────────────────────────────────────
+const GRID = { color: '#e9ecef' };
+const TICK = { color: '#6c757d' };
+const C_MV   = '#3b82f6';
+const C_WT   = '#8b5cf6';
+const C_WON  = '#28a745';
+const C_LOST = '#dc3545';
+const C_OPEN = '#6366f1';
+const C_NOOP = '#adb5bd';
+const baseOpts = {
+  responsive: true,
+  plugins: { legend: { labels: { color: '#6c757d', font: { size: 12 } } } },
+  scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, ticks: TICK } }
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function rateClass(r)     { return r >= 70 ? 'rate-high' : r >= 40 ? 'rate-mid' : 'rate-low'; }
+function fmtMonth(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+function fmtUSD(n)  { return '$' + Math.round(n).toLocaleString(); }
+function pct(v, d)  { return d ? +(100 * v / d).toFixed(1) : 0; }
+// ─── Nav state ───────────────────────────────────────────────────────────────
+let _activeFY     = 'FY2026';
+let _activePeriod = 'all';
+let _activeView   = 'overview';
+let _activeOwner  = 'all';
+let _allMonthly   = [];
+let _allQuarterly = [];
+
+function _ownerFilter(rows) {
+  if (_activeOwner === 'all') return rows;
+  return rows.filter(r => r.OWNER === _activeOwner);
+}
+function _activeOwners() {
+  return _activeOwner === 'all'
+    ? ['Michaël Vasseur', 'Willow Turano']
+    : [_activeOwner];
+}
+function setOwner(owner, btn) {
+  _activeOwner = owner;
+  document.querySelectorAll('.o-btn').forEach(b => { b.classList.remove('active'); b.classList.remove('active-alt'); });
+  btn.classList.add(owner === 'all' ? 'active' : 'active-alt');
+  if (_activeView === 'overview') _renderOverview();
+  else if (_activeView === 'opp')  _renderOppForPeriod();
+  else if (_activeView === 'role') _renderRoleForPeriod();
+  else if (_activeView === 'reseller') renderReseller();
+  else if (_activeView === 'premium')  renderPremium();
+}
+
+// FQ months labels per FY position (same offsets every year: May=FQ1, Aug=FQ2, Nov=FQ3, Feb=FQ4)
+const FQ_MONTH_LABELS = [['May','Jul'],['Aug','Oct'],['Nov','Jan'],['Feb','Apr']];
+
+function monthFY(isoYYYYMM) {
+  const [y, m] = isoYYYYMM.split('-').map(Number);
+  if ((y === 2025 && m >= 5) || (y === 2026 && m <= 4)) return 'FY2026';
+  if ((y === 2026 && m >= 5) || (y === 2027 && m <= 4)) return 'FY2027';
+  if ((y === 2027 && m >= 5) || (y === 2028 && m <= 4)) return 'FY2028';
+  return 'Other';
+}
+
+function monthFQ(isoYYYYMM) {
+  const [y, m] = isoYYYYMM.split('-').map(Number);
+  // Gusto FY starts May 1; FQ1=May-Jul, FQ2=Aug-Oct, FQ3=Nov-Jan, FQ4=Feb-Apr
+  let fyStartYear;
+  const fy = monthFY(isoYYYYMM);
+  if (fy === 'Other') return 'Other';
+  fyStartYear = parseInt(fy.replace('FY','')) - 1; // FY2026 starts 2025
+  const offset = (y - fyStartYear) * 12 + (m - 5); // months since May of start year
+  return `FQ${Math.floor(offset / 3) + 1} ${fy}`;
+}
+
+function _renderPeriodRow() {
+  const row = document.getElementById('period-row');
+  row.innerHTML = `<span class="nav-label">Period</span><div class="btn-track">
+    <button class="p-btn active" onclick="setPeriod('all',this)">All ${_activeFY}</button>
+    ${[1,2,3,4].map(q => {
+      const [s,e] = FQ_MONTH_LABELS[q-1];
+      return `<button class="p-btn" onclick="setPeriod('FQ${q} ${_activeFY}',this)">FQ${q} <small style="opacity:.7">${s}–${e}</small></button>`;
+    }).join('')}</div>`;
+}
+
+function setFY(fy, btn) {
+  _activeFY     = fy;
+  _activePeriod = 'all';
+  document.querySelectorAll('.fy-btn').forEach(b => { b.classList.remove('active'); b.classList.remove('active-alt'); });
+  btn.classList.add('active'); // Year row always stays navy (single default selection)
+  _renderPeriodRow();
+  if (_activeView === 'overview') _renderOverview();
+  else if (_activeView === 'opp')  _renderOppForPeriod();
+  else if (_activeView === 'role') _renderRoleForPeriod();
+  else if (_activeView === 'reseller') renderReseller();
+  else if (_activeView === 'premium')  renderPremium();
+}
+
+function setPeriod(period, btn) {
+  _activePeriod = period;
+  document.querySelectorAll('.p-btn').forEach(b => { b.classList.remove('active'); b.classList.remove('active-alt'); });
+  btn.classList.add(period === 'all' ? 'active' : 'active-alt');
+  if (_activeView === 'overview') _renderOverview();
+  else if (_activeView === 'opp')  _renderOppForPeriod();
+  else if (_activeView === 'role') _renderRoleForPeriod();
+  else if (_activeView === 'reseller') renderReseller();
+  else if (_activeView === 'premium')  renderPremium();
+}
+
+function _oppRowsForPeriod() {
+  if (_activePeriod !== 'all') return (PRELOADED.oppBreakByFQ || {})[_activePeriod] || [];
+  if (PRELOADED.oppBreakByFY && PRELOADED.oppBreakByFY[_activeFY]) return PRELOADED.oppBreakByFY[_activeFY];
+  return (PRELOADED.oppBreak || []);
+}
+function _roleRowsForPeriod() {
+  if (_activePeriod !== 'all') return (PRELOADED.roleSegsByFQ || {})[_activePeriod] || [];
+  if (PRELOADED.roleSegsByFY && PRELOADED.roleSegsByFY[_activeFY]) return PRELOADED.roleSegsByFY[_activeFY];
+  return (PRELOADED.roleSegs || []);
+}
+function _renderOppForPeriod() {
+  ['chart-opp-stacked'].forEach(id => { const c = Chart.getChart(id); if (c) c.destroy(); });
+  renderOppBreakdown(_ownerFilter(_oppRowsForPeriod()));
+}
+function _renderRoleForPeriod() {
+  ['chart-role-volume','chart-role-winrate','chart-role-mrr'].forEach(id => { const c = Chart.getChart(id); if (c) c.destroy(); });
+  renderByRole(_ownerFilter(_roleRowsForPeriod()));
+}
+
+function setView(view, btn) {
+  _activeView = view;
+  document.querySelectorAll('.v-btn, .s-btn').forEach(b => {
+    b.classList.remove('active'); b.classList.remove('active-alt'); b.classList.remove('active-premium');
+  });
+  if (view === 'premium')  btn.classList.add('active-premium');
+  else if (view === 'overview') btn.classList.add('active'); // leftmost v-btn → navy
+  else if (view === 'reseller') btn.classList.add('active'); // s-btn → indigo (uses .s-btn.active)
+  else btn.classList.add('active-alt'); // Opp Status, By Role → bright blue
+
+  const VIEWS = ['overview', 'opp', 'role', 'reseller', 'premium'];
+  VIEWS.forEach(v => {
+    const el = document.getElementById('view-' + v) || document.getElementById('tab-' + v);
+    if (el) el.style.display = (v === view) ? 'block' : 'none';
+  });
+
+  // Period row: always active — reseller and premium now support period filtering
+  document.getElementById('period-row').classList.remove('view-row-dimmed');
+
+  if (view === 'overview')  _renderOverview();
+  else if (view === 'opp')  _renderOppForPeriod();
+  else if (view === 'role') _renderRoleForPeriod();
+  else setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+}
+
+function _renderOverview() {
+  // Destroy existing charts so Chart.js doesn't complain about canvas reuse
+  ['chart-q-volume','chart-q-winrate','chart-q-resolution','chart-m-volume','chart-m-winrate'].forEach(id => {
+    const c = Chart.getChart(id);
+    if (c) c.destroy();
+  });
+
+  const isAll = _activePeriod === 'all';
+  document.getElementById('quarterly-charts').style.display = isAll ? '' : 'none';
+  document.getElementById('monthly-charts').style.display   = isAll ? 'none' : '';
+  document.getElementById('table-quarterly-wrap').style.display = isAll ? '' : 'none';
+  document.getElementById('table-monthly-wrap').style.display   = isAll ? 'none' : '';
+  document.getElementById('detail-label').textContent = isAll ? `Quarterly Detail — ${_activeFY}` : `Monthly Detail — ${_activePeriod}`;
+
+  if (isAll) {
+    const fyQuarterly = _ownerFilter(_allQuarterly.filter(r => r.FISCAL_QUARTER.includes(_activeFY)));
+    renderQuarterly(fyQuarterly);
+  } else {
+    const filteredMonthly   = _ownerFilter(_allMonthly.filter(r => monthFQ(r.MONTH.slice(0,7)) === _activePeriod));
+    const filteredQuarterly = _ownerFilter(_allQuarterly.filter(r => r.FISCAL_QUARTER === _activePeriod));
+    renderQuarterly(filteredQuarterly);
+    renderMonthly(filteredMonthly);
+  }
+}
+
+// ─── Fetch ───────────────────────────────────────────────────────────────────
+async function fetchRows(queryId, apiKey) {
+  const url = `${REDASH}/api/queries/${queryId}/results.json?api_key=${apiKey}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Query ${queryId} returned HTTP ${resp.status}`);
+  const json = await resp.json();
+  return json.query_result.data.rows;
+}
+
+function monthLabel(isoYYYYMM) {
+  // Returns just the FQ number label (e.g. "FQ2") for a month
+  const fq = monthFQ(isoYYYYMM);
+  return fq === 'Other' ? '' : fq.split(' ')[0]; // "FQ2 FY2026" → "FQ2"
+}
+
+// ─── QUARTERLY ───────────────────────────────────────────────────────────────
+function renderQuarterly(rows) {
+  const fqs = [1,2,3,4].map(q => `FQ${q} ${_activeFY}`);
+  const get = (fq, owner, k) => {
+    const r = rows.find(d => d.FISCAL_QUARTER === fq && d.OWNER === owner);
+    return r ? r[k] : null;
+  };
+
+  // KPI totals
+  let totalTickets = 0, totalWithOpp = 0, totalOpenWithOpp = 0, totalOpenNoOpp = 0, totalClosedNoOpp = 0, totalWon = 0, totalLost = 0;
+  rows.forEach(r => {
+    totalTickets     += r.TOTAL_TICKETS  || 0;
+    totalWithOpp     += r.WITH_OPP       || 0;
+    totalOpenWithOpp += r.OPEN_WITH_OPP  || 0;
+    totalOpenNoOpp   += r.OPEN_NO_OPP    || 0;
+    totalClosedNoOpp += r.CLOSED_NO_OPP  || 0;
+    totalWon         += r.WON            || 0;
+    totalLost        += r.LOST           || 0;
+  });
+  const totalActive = totalOpenWithOpp + totalOpenNoOpp;
+  const teamWinRate = pct(totalWon, totalWithOpp);
+  const wonLost     = totalLost > 0 ? (totalWon / totalLost).toFixed(1) + '×' : '∞';
+
+  // MRR from owner-filtered role data
+  const roleRows = _ownerFilter(_roleRowsForPeriod());
+  let totalMrr = 0, mvMrr = 0, wtMrr = 0;
+  roleRows.forEach(r => {
+    totalMrr += r.MRR_CLOSED || 0;
+    if (r.OWNER === 'Michaël Vasseur') mvMrr += r.MRR_CLOSED || 0;
+    if (r.OWNER === 'Willow Turano')   wtMrr += r.MRR_CLOSED || 0;
+  });
+
+  const periodLabel = _activePeriod === 'all' ? _activeFY : _activePeriod;
+  const ownerLabel  = _activeOwner === 'all' ? null : _activeOwner.split(' ')[0]; // "Michaël" or "Willow"
+  const mrrSub = ownerLabel ? '' : `MV: ${fmtUSD(mvMrr)} &nbsp;|&nbsp; WT: ${fmtUSD(wtMrr)}`;
+  const wonSub  = ownerLabel
+    ? `Win rate: ${teamWinRate}%`
+    : `MV: ${rows.filter(r=>r.OWNER==='Michaël Vasseur').reduce((s,r)=>s+(r.WON||0),0)} &nbsp;|&nbsp; WT: ${rows.filter(r=>r.OWNER==='Willow Turano').reduce((s,r)=>s+(r.WON||0),0)} &nbsp;·&nbsp; Win rate: ${teamWinRate}%`;
+
+  document.getElementById('kpi-quarterly').innerHTML = `
+    <div class="kpi-card green">
+      <div class="label">MRR Closed — ${periodLabel}</div>
+      <div class="value">${fmtUSD(totalMrr)}</div>
+      <div class="sub">${mrrSub || '&nbsp;'}</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">Deals Won — ${periodLabel}</div>
+      <div class="value">${totalWon.toLocaleString()}</div>
+      <div class="sub">${wonSub}</div>
+    </div>
+    <div class="kpi-card indigo">
+      <div class="label">Won:Lost Ratio</div>
+      <div class="value">${wonLost}</div>
+      <div class="sub">${totalWon} won vs ${totalLost} lost — ${periodLabel}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Tickets Supported</div>
+      <div class="value" style="color:var(--navy)">${totalTickets.toLocaleString()}</div>
+      <div class="sub">
+        ${totalWithOpp.toLocaleString()} closed w/ opp
+        &nbsp;·&nbsp; <span style="color:var(--indigo);font-weight:600">${totalActive} active</span>
+        &nbsp;·&nbsp; <span style="color:var(--danger);font-weight:600">${totalClosedNoOpp} no opp</span>
+      </div>
+      <div class="sub" style="margin-top:4px;opacity:0.75">
+        ↳ ${totalOpenWithOpp} of ${totalActive} active have an opp${totalOpenNoOpp > 0 ? ` · ${totalOpenNoOpp} don't` : ''}
+      </div>
+    </div>`;
+
+  const ownerColor = o => o.includes('Micha') ? C_MV : C_WT;
+  const visOwners  = _activeOwners();
+
+  // Volume chart
+  new Chart(document.getElementById('chart-q-volume'), {
+    type: 'bar',
+    data: { labels: fqs, datasets: visOwners.map(o => ({
+      label: o, data: fqs.map(f => get(f, o, 'TOTAL_TICKETS') || 0),
+      backgroundColor: ownerColor(o) + 'cc', borderRadius: 5
+    }))},
+    options: { ...baseOpts }
+  });
+
+  // Win rate chart
+  new Chart(document.getElementById('chart-q-winrate'), {
+    type: 'line',
+    data: { labels: fqs, datasets: visOwners.map(o => ({
+      label: o, data: fqs.map(f => get(f, o, 'WIN_RATE_PCT')),
+      borderColor: ownerColor(o), backgroundColor: ownerColor(o) + '18',
+      tension: 0.3, fill: true, pointRadius: 5, pointBackgroundColor: ownerColor(o), borderWidth: 2.5
+    }))},
+    options: { ...baseOpts, scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, min: 0, max: 105, ticks: { color: '#6c757d', callback: v => v + '%' } } } }
+  });
+
+  // Resolution chart
+  const safeRes = (fq, o) => { const v = get(fq, o, 'MEDIAN_RESOLUTION_HRS'); return (v && v > 0) ? +v.toFixed(1) : null; };
+  new Chart(document.getElementById('chart-q-resolution'), {
+    type: 'bar',
+    data: { labels: fqs, datasets: visOwners.map(o => ({
+      label: o, data: fqs.map(f => safeRes(f, o)),
+      backgroundColor: ownerColor(o) + 'cc', borderRadius: 5
+    }))},
+    options: { ...baseOpts, scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, ticks: { color: '#6c757d', callback: v => v + ' hrs' } } } }
+  });
+
+  // Table
+  const sorted = [...rows].sort((a, b) => a.FISCAL_QUARTER.localeCompare(b.FISCAL_QUARTER) || a.OWNER.localeCompare(b.OWNER));
+  document.querySelector('#table-quarterly tbody').innerHTML = sorted.map(r => {
+    const ratio = r.LOST > 0 ? (r.WON / r.LOST).toFixed(1) + '×' : r.WON > 0 ? '∞' : '—';
+    const wr    = r.WIN_RATE_PCT != null ? r.WIN_RATE_PCT.toFixed(1) : '—';
+    const res   = (r.MEDIAN_RESOLUTION_HRS && r.MEDIAN_RESOLUTION_HRS > 0) ? r.MEDIAN_RESOLUTION_HRS.toFixed(1) + ' hrs' : '—';
+    return `<tr>
+      <td><strong>${r.FISCAL_QUARTER}</strong></td>
+      <td><span class="tag ${r.OWNER.includes('Micha') ? 'tag-blue' : 'tag-purple'}">${r.OWNER}</span></td>
+      <td>${r.TOTAL_TICKETS}</td>
+      <td>${r.WITH_OPP}</td>
+      <td>${r.WON}</td>
+      <td>${r.LOST}</td>
+      <td><span class="${rateClass(+wr)}">${wr}%</span></td>
+      <td>${ratio}</td>
+      <td>${res}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── MONTHLY ─────────────────────────────────────────────────────────────────
+function renderMonthly(rows) {
+  const months = [...new Set(rows.map(r => r.MONTH.slice(0, 7)))].sort();
+  const labels  = months.map(m => fmtMonth(m + '-01'));
+  const get     = (m, owner, k) => { const r = rows.find(d => d.MONTH.startsWith(m) && d.OWNER === owner); return r ? r[k] : null; };
+
+  const ownerColorM = o => o.includes('Micha') ? C_MV : C_WT;
+  const visOwnersM  = _activeOwners();
+
+  new Chart(document.getElementById('chart-m-volume'), {
+    type: 'bar',
+    data: { labels, datasets: visOwnersM.map(o => ({
+      label: o, data: months.map(m => get(m, o, 'TOTAL_TICKETS') || 0),
+      backgroundColor: ownerColorM(o) + 'cc', borderRadius: 4
+    }))},
+    options: { ...baseOpts }
+  });
+
+  new Chart(document.getElementById('chart-m-winrate'), {
+    type: 'line',
+    data: { labels, datasets: visOwnersM.map(o => ({
+      label: o, data: months.map(m => get(m, o, 'WIN_RATE_PCT')),
+      borderColor: ownerColorM(o), backgroundColor: ownerColorM(o) + '18',
+      tension: 0.3, fill: true, pointRadius: 3, spanGaps: true, borderWidth: 2.5
+    }))},
+    options: { ...baseOpts, scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, min: 0, max: 105, ticks: { color: '#6c757d', callback: v => v + '%' } } } }
+  });
+
+  const sorted = [...rows].sort((a, b) => b.MONTH.localeCompare(a.MONTH));
+  document.querySelector('#table-monthly tbody').innerHTML = sorted.map(r => {
+    const m   = r.MONTH.slice(0, 7);
+    const fq  = monthLabel(m);
+    const wr  = r.WIN_RATE_PCT != null ? r.WIN_RATE_PCT.toFixed(1) : '—';
+    return `<tr>
+      <td><strong>${fmtMonth(r.MONTH.slice(0, 10))}</strong></td>
+      <td><small style="color:var(--muted)">${monthFQ(m)}</small></td>
+      <td><span class="tag ${r.OWNER.includes('Micha') ? 'tag-blue' : 'tag-purple'}">${r.OWNER}</span></td>
+      <td>${r.TOTAL_TICKETS}</td>
+      <td>${r.WITH_OPP}</td>
+      <td>${r.WON}</td>
+      <td>${r.LOST}</td>
+      <td><div class="bar-cell"><span class="${rateClass(+wr)}">${wr}%</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(+wr,100)}%"></div></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── OPP STATUS BREAKDOWN ────────────────────────────────────────────────────
+function renderOppBreakdown(rows) {
+  const owners     = _activeOwners();
+  const categories = ['Closed Won', 'Closed Lost', 'Open / In Progress', 'No Opp Attached'];
+  const catColors  = { 'Closed Won': C_WON, 'Closed Lost': C_LOST, 'Open / In Progress': C_OPEN, 'No Opp Attached': C_NOOP };
+  const catTags    = { 'Closed Won': 'tag-won', 'Closed Lost': 'tag-lost', 'Open / In Progress': 'tag-open', 'No Opp Attached': 'tag-noopp' };
+
+  const catSum = (owner, cat) => rows.filter(r => r.OWNER === owner && r.OPP_CATEGORY === cat).reduce((s, r) => s + r.TICKET_COUNT, 0);
+  const ownerTotal = owner => rows.filter(r => r.OWNER === owner).reduce((s, r) => s + r.TICKET_COUNT, 0);
+
+  const mvWon  = catSum('Michaël Vasseur', 'Closed Won');
+  const wtWon  = catSum('Willow Turano',   'Closed Won');
+  const mvLost = catSum('Michaël Vasseur', 'Closed Lost');
+  const wtLost = catSum('Willow Turano',   'Closed Lost');
+  const mvOpen = catSum('Michaël Vasseur', 'Open / In Progress');
+  const wtOpen = catSum('Willow Turano',   'Open / In Progress');
+  const mvNo   = catSum('Michaël Vasseur', 'No Opp Attached');
+  const wtNo   = catSum('Willow Turano',   'No Opp Attached');
+
+  const oppPeriodLabel = _activePeriod === 'all' ? _activeFY : _activePeriod;
+  document.getElementById('kpi-opp').innerHTML = `
+    <div class="kpi-card green">
+      <div class="label">Closed Won — ${oppPeriodLabel}</div>
+      <div class="value">${(mvWon + wtWon).toLocaleString()}</div>
+      <div class="sub">MV: ${mvWon} &nbsp;|&nbsp; WT: ${wtWon}</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="label">Closed Lost — ${oppPeriodLabel}</div>
+      <div class="value">${(mvLost + wtLost).toLocaleString()}</div>
+      <div class="sub">MV: ${mvLost} &nbsp;|&nbsp; WT: ${wtLost}</div>
+    </div>
+    <div class="kpi-card indigo">
+      <div class="label">Open / In Progress</div>
+      <div class="value">${(mvOpen + wtOpen).toLocaleString()}</div>
+      <div class="sub">MV: ${mvOpen} &nbsp;|&nbsp; WT: ${wtOpen}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">No Opp Attached</div>
+      <div class="value" style="color:var(--muted)">${(mvNo + wtNo).toLocaleString()}</div>
+      <div class="sub">MV: ${mvNo} &nbsp;|&nbsp; WT: ${wtNo}</div>
+    </div>`;
+
+  new Chart(document.getElementById('chart-opp-stacked'), {
+    type: 'bar',
+    data: {
+      labels: owners,
+      datasets: categories.map(cat => ({
+        label: cat,
+        data: owners.map(o => catSum(o, cat)),
+        backgroundColor: catColors[cat] + 'cc',
+        borderColor: catColors[cat],
+        borderWidth: 1,
+        borderRadius: 3,
+      }))
+    },
+    options: {
+      responsive: true, indexAxis: 'y',
+      plugins: {
+        legend: { labels: { color: '#6c757d', font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => {
+          const total = ownerTotal(owners[ctx.dataIndex]);
+          return ` ${ctx.dataset.label}: ${ctx.parsed.x} (${(100 * ctx.parsed.x / total).toFixed(1)}%)`;
+        }}}
+      },
+      scales: { x: { stacked: true, grid: GRID, ticks: TICK }, y: { stacked: true, grid: GRID, ticks: TICK } }
+    }
+  });
+
+  const ownerTotals = {};
+  owners.forEach(o => { ownerTotals[o] = ownerTotal(o); });
+
+  const sorted = [...rows].sort((a, b) => a.OWNER.localeCompare(b.OWNER) || a.OPP_CATEGORY.localeCompare(b.OPP_CATEGORY));
+  document.querySelector('#table-opp-breakdown tbody').innerHTML = sorted.map(r => `<tr>
+    <td><span class="tag ${r.OWNER.includes('Micha') ? 'tag-blue' : 'tag-purple'}">${r.OWNER}</span></td>
+    <td><span class="tag ${catTags[r.OPP_CATEGORY] || ''}">${r.OPP_CATEGORY}</span></td>
+    <td>${r.OPP_STAGE}</td>
+    <td>${r.TICKET_COUNT}</td>
+    <td><div class="bar-cell"><span>${(100 * r.TICKET_COUNT / ownerTotals[r.OWNER]).toFixed(1)}%</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(100 * r.TICKET_COUNT / ownerTotals[r.OWNER]).toFixed(1)}%;background:${catColors[r.OPP_CATEGORY] || '#adb5bd'}"></div></div>
+    </div></td>
+  </tr>`).join('');
+}
+
+// ─── BY ROLE ─────────────────────────────────────────────────────────────────
+function renderByRole(rows) {
+  const ROLE_ORDER = ['Gusto Pro', 'Mid-Market', 'Core Sales', 'Biz Dev', 'Other'];
+  const ROLE_COLORS = { 'Gusto Pro': '#10b981', 'Mid-Market': '#3b82f6', 'Core Sales': '#f59e0b', 'Biz Dev': '#8b5cf6', 'Other': '#adb5bd' };
+
+  // Aggregate by role across both owners
+  const byRole = {};
+  rows.forEach(r => {
+    if (!byRole[r.ROLE_SEGMENT]) byRole[r.ROLE_SEGMENT] = { total: 0, won: 0, lost: 0, open: 0, mrr: 0 };
+    byRole[r.ROLE_SEGMENT].total += r.TOTAL_TICKETS || 0;
+    byRole[r.ROLE_SEGMENT].won   += r.WON || 0;
+    byRole[r.ROLE_SEGMENT].lost  += r.LOST || 0;
+    byRole[r.ROLE_SEGMENT].open  += r.OPEN || 0;
+    byRole[r.ROLE_SEGMENT].mrr   += r.MRR_CLOSED || 0;
+  });
+
+  // KPI cards — top 4 roles by ticket volume
+  const topRoles = Object.entries(byRole).sort((a, b) => b[1].total - a[1].total).slice(0, 4);
+  const kpiColors = ['green', 'blue', 'amber', 'indigo'];
+  document.getElementById('kpi-role').innerHTML = topRoles.map(([role, d], i) => `
+    <div class="kpi-card ${kpiColors[i]}">
+      <div class="label">${role} — Win Rate</div>
+      <div class="value">${pct(d.won, d.total)}%</div>
+      <div class="sub">${d.won} won / ${d.total} tickets &nbsp;|&nbsp; ${fmtUSD(d.mrr)} MRR</div>
+    </div>`).join('');
+
+  const roles = ROLE_ORDER.filter(r => byRole[r]);
+
+  // Volume chart
+  new Chart(document.getElementById('chart-role-volume'), {
+    type: 'bar',
+    data: { labels: roles, datasets: [
+      { label: 'Michaël Vasseur', data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Michaël Vasseur'); return row ? row.TOTAL_TICKETS : 0; }), backgroundColor: C_MV + 'cc', borderRadius: 4 },
+      { label: 'Willow Turano',   data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Willow Turano');   return row ? row.TOTAL_TICKETS : 0; }), backgroundColor: C_WT + 'cc', borderRadius: 4 },
+    ]},
+    options: { ...baseOpts }
+  });
+
+  // Win rate chart (by owner)
+  new Chart(document.getElementById('chart-role-winrate'), {
+    type: 'bar',
+    data: { labels: roles, datasets: [
+      { label: 'Michaël Vasseur', data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Michaël Vasseur'); return row ? +row.WIN_RATE_PCT.toFixed(1) : 0; }), backgroundColor: C_MV + 'cc', borderRadius: 4 },
+      { label: 'Willow Turano',   data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Willow Turano');   return row ? +row.WIN_RATE_PCT.toFixed(1) : 0; }), backgroundColor: C_WT + 'cc', borderRadius: 4 },
+    ]},
+    options: { ...baseOpts, scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, min: 0, max: 100, ticks: { color: '#6c757d', callback: v => v + '%' } } } }
+  });
+
+  // MRR chart (combined)
+  new Chart(document.getElementById('chart-role-mrr'), {
+    type: 'bar',
+    data: { labels: roles, datasets: [
+      { label: 'Michaël Vasseur', data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Michaël Vasseur'); return row ? row.MRR_CLOSED : 0; }), backgroundColor: C_MV + 'cc', borderRadius: 4 },
+      { label: 'Willow Turano',   data: roles.map(r => { const row = rows.find(d => d.ROLE_SEGMENT === r && d.OWNER === 'Willow Turano');   return row ? row.MRR_CLOSED : 0; }), backgroundColor: C_WT + 'cc', borderRadius: 4 },
+    ]},
+    options: { ...baseOpts, scales: { x: { grid: GRID, ticks: TICK }, y: { grid: GRID, ticks: { color: '#6c757d', callback: v => '$' + (v / 1000).toFixed(0) + 'K' } } } }
+  });
+
+  // Table — sorted by role order then owner
+  const tableRows = [];
+  roles.forEach(role => {
+    ['Michaël Vasseur', 'Willow Turano'].forEach(owner => {
+      const r = rows.find(d => d.ROLE_SEGMENT === role && d.OWNER === owner);
+      if (r) tableRows.push(r);
+    });
+  });
+
+  document.querySelector('#table-role tbody').innerHTML = tableRows.map(r => {
+    const wr = r.WIN_RATE_PCT != null ? r.WIN_RATE_PCT.toFixed(1) : '—';
+    return `<tr>
+      <td><strong>${r.ROLE_SEGMENT}</strong></td>
+      <td><span class="tag ${r.OWNER.includes('Micha') ? 'tag-blue' : 'tag-purple'}">${r.OWNER}</span></td>
+      <td>${r.TOTAL_TICKETS}</td>
+      <td>${r.WON}</td>
+      <td>${r.LOST}</td>
+      <td>${r.OPEN}</td>
+      <td><div class="bar-cell"><span class="${rateClass(+wr)}">${wr}%</span><div class="bar-track"><div class="bar-fill" style="width:${Math.min(+wr,100)}%"></div></div></div></td>
+      <td>${fmtUSD(r.MRR_CLOSED)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── RESELLER ────────────────────────────────────────────────────────────────
+function renderReseller() {
+  // Live data from refresh script (objects); fall back to example array.
+  const isLive = PRELOADED && Array.isArray(PRELOADED.reseller) && PRELOADED.reseller.length > 0;
+  let D; // array of objects: {partner, owner, tickets, noOpp, companyOpp, totalClients, migrated, toMigrate, lost, forecastMrr, currentMrr}
+
+  if (isLive) {
+    // Pick FQ slice or full-year
+    let source;
+    if (_activePeriod !== 'all' && PRELOADED.resellerByFQ && PRELOADED.resellerByFQ[_activePeriod]) {
+      source = PRELOADED.resellerByFQ[_activePeriod];
+    } else {
+      source = PRELOADED.reseller;
+    }
+    D = source.map(r => ({
+      partner:      r.PARTNER,
+      owner:        r.OWNER,
+      tickets:      r.TICKETS,
+      noOpp:        r.NO_OPP,
+      companyOpp:   r.COMPANY_OPP || 0,
+      totalClients: r.TOTAL_CLIENTS,
+      migrated:     r.CLIENTS_MIGRATED,
+      toMigrate:    r.CLIENTS_TO_MIGRATE,
+      lost:         r.CLIENTS_LOST,
+      forecastMrr:  r.FORECASTED_MRR,
+      currentMrr:   r.OPPORTUNITY_MRR,
+    }));
+    // Owner filter: "Both" partners show up for either SE selection
+    if (_activeOwner !== 'all') {
+      D = D.filter(r => r.owner === _activeOwner || r.owner === 'Both');
+    }
+  } else {
+    // Example data — shown until live SFDC data is available
+    D = [
+      { partner:'Larson Gross',                  owner:'Willow Turano',   tickets:4, noOpp:0, companyOpp:0, totalClients:340, migrated:105, toMigrate:235, lost:0,   forecastMrr:10200, currentMrr:3150 },
+      { partner:'BPM LLP',                       owner:'Michaël Vasseur', tickets:3, noOpp:0, companyOpp:0, totalClients:510, migrated:140, toMigrate:290, lost:80,  forecastMrr:15300, currentMrr:4200 },
+      { partner:'Citrin Cooperman',              owner:'Willow Turano',   tickets:3, noOpp:0, companyOpp:0, totalClients:280, migrated:95,  toMigrate:185, lost:0,   forecastMrr:8400,  currentMrr:2850 },
+      { partner:'Frank, Rimerman + Co. LLP',     owner:'Willow Turano',   tickets:2, noOpp:0, companyOpp:0, totalClients:195, migrated:60,  toMigrate:135, lost:0,   forecastMrr:5850,  currentMrr:1800 },
+      { partner:'CliftonLarsonAllen LLP',        owner:'Michaël Vasseur', tickets:2, noOpp:0, companyOpp:0, totalClients:420, migrated:110, toMigrate:210, lost:100, forecastMrr:12600, currentMrr:3300 },
+      { partner:'Jackson Thornton & Co., P.C.',  owner:'Willow Turano',   tickets:2, noOpp:0, companyOpp:0, totalClients:400, migrated:49,  toMigrate:351, lost:0,   forecastMrr:36000, currentMrr:9951 },
+      { partner:'Murphy, Murphy & Murphy, Inc.', owner:'Willow Turano',   tickets:2, noOpp:0, companyOpp:0, totalClients:160, migrated:80,  toMigrate:80,  lost:0,   forecastMrr:4800,  currentMrr:2400 },
+      { partner:'Acuity',                        owner:'Michaël Vasseur', tickets:2, noOpp:2, companyOpp:0, totalClients:0,   migrated:0,   toMigrate:0,   lost:0,   forecastMrr:0,     currentMrr:0    },
+      { partner:'Rehmann',                       owner:'Willow Turano',   tickets:1, noOpp:0, companyOpp:0, totalClients:220, migrated:0,   toMigrate:220, lost:0,   forecastMrr:6600,  currentMrr:0    },
+      { partner:'PwC',                           owner:'Michaël Vasseur', tickets:1, noOpp:0, companyOpp:0, totalClients:800, migrated:0,   toMigrate:800, lost:0,   forecastMrr:24000, currentMrr:0    },
+    ];
+  }
+  D.sort((a, b) => (b.tickets - a.tickets) || a.partner.localeCompare(b.partner));
+
+  // ── Update banner ─────────────────────────────────────────────────────────────
+  const banner     = document.getElementById('reseller-banner');
+  const bannerText = document.getElementById('reseller-banner-text');
+  if (isLive) {
+    banner.style.background   = '#fff';
+    banner.style.border       = '1px solid rgba(0,0,0,0.07)';
+    banner.style.borderRadius = '12px';
+    banner.style.boxShadow    = '0 1px 3px rgba(0,0,0,0.08)';
+    banner.style.color        = 'var(--navy)';
+    const noOppTotal      = D.reduce((s, r) => s + r.noOpp,      0);
+    const companyOppTotal = D.reduce((s, r) => s + r.companyOpp, 0);
+    const ploTotal        = D.reduce((s, r) => s + r.tickets,     0) - noOppTotal - companyOppTotal;
+    bannerText.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%">
+        <div style="text-align:center">
+          <strong style="color:var(--navy);display:block;font-size:14px">Live Data from Salesforce</strong>
+          <span style="color:var(--muted);font-size:12px">Reseller tickets · Account Type = Reseller · Created FY2026</span>
+        </div>
+        <div style="display:flex;gap:8px;width:100%">
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(13,148,136,0.06);border:1px solid rgba(13,148,136,0.12);color:var(--teal);text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;opacity:.8">PLO Attached</div>
+            <div style="font-size:24px;font-weight:700">${ploTotal}</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);color:var(--amber);text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;opacity:.8">No PLO Created</div>
+            <div style="font-size:24px;font-weight:700">${noOppTotal}</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(220,53,69,0.05);border:1px solid rgba(220,53,69,0.12);color:var(--danger);text-align:center">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;opacity:.8">Company Opp</div>
+            <div style="font-size:24px;font-weight:700">${companyOppTotal}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── Totals ────────────────────────────────────────────────────────────────────
+  const totalTickets   = D.reduce((s, r) => s + r.tickets,     0);
+  const totalClients   = D.reduce((s, r) => s + r.totalClients,0);
+  const totalMig       = D.reduce((s, r) => s + r.migrated,    0);
+  const totalToMig     = D.reduce((s, r) => s + r.toMigrate,   0);
+  const totalLost      = D.reduce((s, r) => s + r.lost,        0);
+  const totalNoOpp       = D.reduce((s, r) => s + r.noOpp,       0);
+  const totalCompanyOpp  = D.reduce((s, r) => s + r.companyOpp,  0);
+  const totalResellerOpp = totalTickets - totalNoOpp - totalCompanyOpp;
+  const totalForecast  = D.reduce((s, r) => s + r.forecastMrr, 0);
+  const totalCurrentMrr= D.reduce((s, r) => s + r.currentMrr, 0);
+  const migRate        = totalClients > 0 ? (100 * totalMig / totalClients).toFixed(1) : '—';
+
+  // ── KPI cards ─────────────────────────────────────────────────────────────────
+  document.getElementById('kpi-reseller').innerHTML = `
+    <div class="kpi-card teal">
+      <div class="label">Reseller Tickets</div>
+      <div class="value">${totalTickets}</div>
+      <div class="sub">${D.length} unique partners</div>
+      <div style="display:flex;flex-direction:row;flex-wrap:wrap;gap:4px;margin-top:8px">
+        <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(13,148,136,0.1);color:var(--teal);white-space:nowrap">Reseller Opps: <strong>${totalResellerOpp}</strong></span>
+        <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${totalCompanyOpp > 0 ? 'rgba(220,53,69,0.1)' : 'rgba(108,117,125,0.07)'};color:${totalCompanyOpp > 0 ? 'var(--danger)' : 'var(--muted)'};white-space:nowrap">Company Opps: <strong>${totalCompanyOpp}</strong></span>
+        <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${totalNoOpp > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(108,117,125,0.07)'};color:${totalNoOpp > 0 ? 'var(--amber)' : 'var(--muted)'};white-space:nowrap">No Opp: <strong>${totalNoOpp}</strong></span>
+      </div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">Total Clients</div>
+      <div class="value">${totalClients.toLocaleString()}</div>
+      <div class="sub">Sum of Total # of Clients on attached reseller opps</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="label">Clients Migrated</div>
+      <div class="value">${totalMig.toLocaleString()}</div>
+      <div class="sub">${migRate}% of total · ${totalToMig.toLocaleString()} still to migrate</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="label">Clients Lost</div>
+      <div class="value">${totalLost.toLocaleString()}</div>
+      <div class="sub">Clients on Closed Lost reseller opps</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="label">Forecasted MRR</div>
+      <div class="value">${fmtUSD(totalForecast)}</div>
+      <div class="sub">Full potential if all clients migrate</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="label">Current MRR</div>
+      <div class="value">${fmtUSD(totalCurrentMrr)}</div>
+      <div class="sub">${fmtUSD(totalForecast - totalCurrentMrr)} remaining upside</div>
+    </div>`;
+
+  // ── Destroy stale charts ──────────────────────────────────────────────────────
+  ['chart-reseller-status', 'chart-reseller-mrr'].forEach(id => {
+    const c = Chart.getChart(id); if (c) c.destroy();
+  });
+
+  const shorten = (s, n) => s.length > n ? s.slice(0, n) + '…' : s;
+
+  // ── Client migration status — top 10 by total clients ────────────────────────
+  const top10 = [...D].filter(r => r.totalClients > 0)
+    .sort((a, b) => b.totalClients - a.totalClients).slice(0, 10);
+
+  new Chart(document.getElementById('chart-reseller-status'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(r => shorten(r.partner, 24)),
+      datasets: [
+        { label: 'Migrated',    data: top10.map(r => r.migrated),  backgroundColor: C_WON  + 'cc', borderRadius: 3 },
+        { label: 'To Migrate',  data: top10.map(r => r.toMigrate), backgroundColor: C_OPEN + 'cc', borderRadius: 3 },
+        { label: 'Lost',        data: top10.map(r => r.lost),      backgroundColor: C_LOST + 'cc', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, indexAxis: 'y',
+      plugins: { legend: { labels: { color: '#6c757d', font: { size: 12 } } } },
+      scales: {
+        x: { stacked: true, grid: GRID, ticks: TICK },
+        y: { stacked: true, grid: GRID, ticks: { color: '#6c757d', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // ── Forecasted vs Current MRR — top 8 by forecasted MRR ──────────────────────
+  const top8mrr = [...D].filter(r => r.forecastMrr > 0)
+    .sort((a, b) => b.forecastMrr - a.forecastMrr).slice(0, 8);
+
+  new Chart(document.getElementById('chart-reseller-mrr'), {
+    type: 'bar',
+    data: {
+      labels: top8mrr.map(r => shorten(r.partner, 20)),
+      datasets: [
+        { label: 'Forecasted MRR', data: top8mrr.map(r => r.forecastMrr),  backgroundColor: C_OPEN + 'cc', borderRadius: 3 },
+        { label: 'Current MRR',    data: top8mrr.map(r => r.currentMrr),   backgroundColor: C_WON  + 'cc', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, indexAxis: 'y',
+      plugins: { legend: { labels: { color: '#6c757d', font: { size: 12 } } } },
+      scales: {
+        x: { grid: GRID, ticks: { color: '#6c757d', callback: v => '$' + (v / 1000).toFixed(0) + 'K' } },
+        y: { grid: GRID, ticks: { color: '#6c757d', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // ── Partner table ─────────────────────────────────────────────────────────────
+  const num = (n, cls) => n > 0
+    ? `<span class="tag ${cls}">${n.toLocaleString()}</span>`
+    : `<span style="color:var(--muted)">—</span>`;
+
+  document.getElementById('reseller-tbody').innerHTML = D.map(r => {
+    const ownerTag = r.owner === 'Both'
+      ? `<span class="tag tag-blue">MV</span> <span class="tag tag-purple">WT</span>`
+      : r.owner.includes('Micha')
+        ? `<span class="tag tag-blue">MV</span>`
+        : `<span class="tag tag-purple">WT</span>`;
+    const migPct = r.totalClients > 0 ? +(100 * r.migrated / r.totalClients).toFixed(0) : 0;
+    return `<tr>
+      <td><strong>${r.partner}</strong></td>
+      <td>${ownerTag}</td>
+      <td><strong>${r.tickets}</strong></td>
+      <td>${r.totalClients > 0 ? r.totalClients.toLocaleString() : num(0,'')}</td>
+      <td>${num(r.migrated,  'tag-won')}</td>
+      <td>${num(r.toMigrate, 'tag-open')}</td>
+      <td>${num(r.lost,      'tag-lost')}</td>
+      <td>
+        ${r.totalClients > 0 ? `<div class="bar-cell">
+          <span class="${rateClass(migPct)}">${migPct}%</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(migPct,100)}%"></div></div>
+        </div>` : '<span style="color:var(--muted)">—</span>'}
+      </td>
+      <td>${r.forecastMrr > 0 ? fmtUSD(r.forecastMrr) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${r.currentMrr  > 0 ? `<strong>${fmtUSD(r.currentMrr)}</strong>` : '<span style="color:var(--muted)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Totals footer ─────────────────────────────────────────────────────────────
+  document.getElementById('reseller-tfoot').innerHTML = `<tr>
+    <td colspan="2" style="padding:10px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Totals</td>
+    <td style="padding:10px 16px"><strong>${totalTickets}</strong></td>
+    <td style="padding:10px 16px"><strong>${totalClients.toLocaleString()}</strong></td>
+    <td style="padding:10px 16px;color:var(--success)"><strong>${totalMig.toLocaleString()}</strong></td>
+    <td style="padding:10px 16px;color:var(--indigo)"><strong>${totalToMig.toLocaleString()}</strong></td>
+    <td style="padding:10px 16px;color:var(--danger)"><strong>${totalLost.toLocaleString()}</strong></td>
+    <td style="padding:10px 16px"><span class="${rateClass(+migRate)}">${migRate}%</span></td>
+    <td style="padding:10px 16px"><strong>${fmtUSD(totalForecast)}</strong></td>
+    <td style="padding:10px 16px"><strong>${fmtUSD(totalCurrentMrr)}</strong></td>
+  </tr>`;
+}
+
+// ─── PREMIUM TICKETS ─────────────────────────────────────────────────────────
+function renderPremium() {
+  let rows = [...(PRELOADED && PRELOADED.premium ? PRELOADED.premium : [])];
+  // Owner filter
+  if (_activeOwner !== 'all') rows = rows.filter(r => r.OWNER === _activeOwner);
+  // FQ filter
+  if (_activePeriod !== 'all') rows = rows.filter(r => r.CREATED_FQ === _activePeriod);
+
+  const mv   = rows.filter(r => r.OWNER.includes('Micha'));
+  const wt   = rows.filter(r => r.OWNER.includes('Willow'));
+  const pipeline = rows.reduce((s, r) => s + (r.AMOUNT || 0), 0);
+
+  const stageTag = s => {
+    if (!s || s === 'No Opp') return `<span class="tag tag-noopp">No Opp</span>`;
+    if (s === 'Closed Won')   return `<span class="tag tag-won">Closed Won</span>`;
+    if (s === 'Closed Lost')  return `<span class="tag tag-lost">Closed Lost</span>`;
+    return `<span class="tag tag-open">${s}</span>`;
+  };
+
+  // Cards 3 & 4: per-SE breakdown when "Both", or client/migration context when filtered to one SE
+  let kpiCard3, kpiCard4;
+  if (_activeOwner === 'all') {
+    kpiCard3 = `<div class="kpi-card">
+      <div class="label">Michaël Vasseur</div>
+      <div class="value" style="color:var(--blue)">${mv.length}</div>
+      <div class="sub">open premium tickets</div>
+    </div>`;
+    kpiCard4 = `<div class="kpi-card">
+      <div class="label">Willow Turano</div>
+      <div class="value" style="color:var(--purple)">${wt.length}</div>
+      <div class="sub">open premium tickets</div>
+    </div>`;
+  } else {
+    // Pull reseller client/migration data for the active SE
+    const resSrc = (PRELOADED && PRELOADED.reseller ? PRELOADED.reseller : [])
+      .filter(r => r.OWNER === _activeOwner || r.OWNER === 'Both');
+    const resTotalClients  = resSrc.reduce((s, r) => s + (r.TOTAL_CLIENTS      || 0), 0);
+    const resTotalMigrated = resSrc.reduce((s, r) => s + (r.CLIENTS_MIGRATED   || 0), 0);
+    const resMigPct = resTotalClients > 0 ? (100 * resTotalMigrated / resTotalClients).toFixed(1) : '—';
+    kpiCard3 = `<div class="kpi-card blue">
+      <div class="label">Total Clients</div>
+      <div class="value">${resTotalClients.toLocaleString()}</div>
+      <div class="sub">Across reseller partners</div>
+    </div>`;
+    kpiCard4 = `<div class="kpi-card green">
+      <div class="label">% Clients Migrated</div>
+      <div class="value">${resMigPct !== '—' ? resMigPct + '%' : '—'}</div>
+      <div class="sub">${resTotalMigrated.toLocaleString()} of ${resTotalClients.toLocaleString()} migrated</div>
+    </div>`;
+  }
+
+  document.getElementById('kpi-premium').innerHTML = `
+    <div class="kpi-card amber">
+      <div class="label">Open Premium Tickets</div>
+      <div class="value">${rows.length}</div>
+      <div class="sub">Status: New or In Progress</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">Opp Pipeline (MRR)</div>
+      <div class="value">$${Math.round(pipeline).toLocaleString()}</div>
+      <div class="sub">Unique opp amounts across ${rows.length} tickets</div>
+    </div>
+    ${kpiCard3}
+    ${kpiCard4}`;
+
+  document.querySelector('#table-premium tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${r.TICKET}</strong></td>
+      <td><span class="tag ${r.OWNER.includes('Micha') ? 'tag-blue' : 'tag-purple'}">${r.OWNER}</span></td>
+      <td>${r.STATUS}</td>
+      <td style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.OPP_NAME}</td>
+      <td>${stageTag(r.OPP_STAGE)}</td>
+      <td>${r.AMOUNT ? '$' + r.AMOUNT.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
+    </tr>`).join('');
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+async function main() {
+  try {
+    let monthlyRows, quarterlyRows, oppRows, roleRows, premiumRows, refreshedAt;
+
+    if (PRELOADED) {
+      monthlyRows   = PRELOADED.monthly;
+      quarterlyRows = PRELOADED.quarterly;
+      oppRows       = PRELOADED.oppBreak;
+      roleRows      = PRELOADED.roleSegs;
+      premiumRows   = PRELOADED.premium || [];
+      refreshedAt   = PRELOADED.refreshedAt;
+    } else {
+      // Try live fetch (requires CORS-permissive environment)
+      [monthlyRows, quarterlyRows, oppRows, roleRows] = await Promise.all([
+        fetchRows(QUERIES.monthly.id,   QUERIES.monthly.key),
+        fetchRows(QUERIES.quarterly.id, QUERIES.quarterly.key),
+        fetchRows(QUERIES.oppBreak.id,  QUERIES.oppBreak.key),
+        fetchRows(QUERIES.roleSegs.id,  QUERIES.roleSegs.key),
+      ]);
+      refreshedAt = new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    // Store globally for period-filter re-renders
+    _allMonthly   = monthlyRows;
+    _allQuarterly = quarterlyRows;
+
+    // Build FY selector row dynamically from payload
+    const fiscalYears = (PRELOADED && PRELOADED.fiscalYears) ? PRELOADED.fiscalYears : ['FY2026'];
+    _activeFY = fiscalYears[0];
+    const fyRow = document.getElementById('fy-row');
+    fyRow.innerHTML = `<span class="nav-label">Year</span><div class="btn-track">` +
+      fiscalYears.map((fy, i) =>
+        `<button class="fy-btn${i === 0 ? ' active' : ''}" onclick="setFY('${fy}',this)">${fy}</button>`
+      ).join('') + `</div>`;
+
+    // Build period row for default FY
+    _renderPeriodRow();
+
+    // Initial render
+    _renderOverview();
+    renderOppBreakdown(oppRows);
+    renderByRole(roleRows);
+    renderReseller();
+    renderPremium();
+
+    // Show only overview panel on load; hide others
+    ['opp','role','reseller','premium'].forEach(v => {
+      const el = document.getElementById('view-' + v) || document.getElementById('tab-' + v);
+      if (el) el.style.display = 'none';
+    });
+    document.getElementById('view-overview').style.display = 'block';
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    document.getElementById('header-sub').textContent =
+      `Live data from Salesforce · ${fiscalYears.join(' + ')} · Refreshed ${refreshedAt}`;
+
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    const errEl = document.getElementById('error-msg');
+    errEl.style.display = 'block';
+    errEl.innerHTML = `<strong>Unable to load live data.</strong> ${err.message}<br><br>
+      This dashboard fetches data from Redash. Make sure you are on the Gusto network (or VPN) and logged into Redash.<br>
+      Open the browser console for more details.`;
+    console.error('Dashboard load error:', err);
+  }
+}
+
+main();
+</script>
+</body>
+</html>

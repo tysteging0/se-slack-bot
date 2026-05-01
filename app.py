@@ -49,6 +49,7 @@ from blocks import (
     block_one_tap_confirm,
     block_one_tap_confirmed,
     block_opening,
+    block_solve_with_claude,
     block_still_active_modal,
     block_update_confirmed,
 )
@@ -61,6 +62,7 @@ from digest import (
     process_tickets,
     save_digest_tickets,
 )
+from dashboard_refresh import run_refresh
 from recap import MANAGER, build_recap_blocks
 from sf_writes import (
     handle_close_ticket,
@@ -232,6 +234,9 @@ def _handle_block_action(payload: dict) -> None:
         handle_dm_send(ticket, owner_name, slack_fn=_send_opp_dm)
         _send(channel, block_dm_sent(ticket, se_first))
         _advance(owner_name)
+
+    elif prefix == "solve_claude":
+        _send(channel, block_solve_with_claude(ticket))
 
     elif prefix == "dm_skip":
         handle_dm_skip(ticket, se_name=owner_name)
@@ -431,6 +436,21 @@ def cron_nudge():
             print(f"[ERROR] Nudge failed for {owner_name}: {e}")
 
     return jsonify({"status": "nudges sent", "nudged": list(nudge_data.keys())})
+
+
+@app.post("/cron/refresh-dashboard")
+def cron_refresh_dashboard():
+    """
+    Called by cron-job.org at 9am, 12pm, and 5pm MT daily.
+    Pulls fresh data from Salesforce and publishes to share-some-html.
+    """
+    _verify_cron(request)
+    try:
+        summary = run_refresh()
+        return jsonify({"status": "ok", **summary})
+    except Exception as e:
+        print(f"[ERROR] Dashboard refresh failed: {e}")
+        return jsonify({"status": "error", "detail": str(e)}), 500
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
