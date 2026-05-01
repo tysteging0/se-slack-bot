@@ -413,29 +413,36 @@ def cron_nudge():
     """
     _verify_cron(request)
 
-    yesterday   = date.today() - timedelta(days=1)
-    nudge_data  = load_nudge_data(yesterday)   # {owner_name: n_remaining}
+    try:
+        yesterday  = date.today() - timedelta(days=1)
+        nudge_data = load_nudge_data(yesterday)   # {owner_name: n_remaining}
+        nudged     = []
 
-    for owner_name, n in nudge_data.items():
-        cfg = OWNERS.get(owner_name)
-        if not cfg:
-            continue
-        try:
-            channel = _dm_channel(cfg["slack_id"])
-            _send(channel, [{
-                "type": "section",
-                "text": {"type": "mrkdwn",
-                         "text": (
-                             f"👋  Good morning, {cfg['first_name']}! You still have "
-                             f"*{n}* ticket{'s' if n != 1 else ''} "
-                             f"left from yesterday's digest. "
-                             f"Your recap sends at 5pm — want to knock these out first?"
-                         )}
-            }])
-        except Exception as e:
-            print(f"[ERROR] Nudge failed for {owner_name}: {e}")
+        for owner_name, n in nudge_data.items():
+            cfg = OWNERS.get(owner_name)
+            if not cfg:
+                continue
+            try:
+                channel = _dm_channel(cfg["slack_id"])
+                _send(channel, [{
+                    "type": "section",
+                    "text": {"type": "mrkdwn",
+                             "text": (
+                                 f"👋  Good morning, {cfg['first_name']}! You still have "
+                                 f"*{n}* ticket{'s' if n != 1 else ''} "
+                                 f"left from yesterday's digest. "
+                                 f"Your recap sends at 5pm — want to knock these out first?"
+                             )}
+                }])
+                nudged.append(owner_name)
+            except Exception as e:
+                print(f"[ERROR] Nudge failed for {owner_name}: {e}")
 
-    return jsonify({"status": "nudges sent", "nudged": list(nudge_data.keys())})
+        return jsonify({"status": "ok", "n": len(nudged)}), 200
+
+    except Exception as e:
+        print(f"[ERROR] Nudge route crashed: {e}")
+        return jsonify({"status": "error"}), 500
 
 
 @app.post("/cron/refresh-dashboard")
