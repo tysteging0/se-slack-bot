@@ -28,9 +28,8 @@ SF_ORG = "gusto-prod"
 
 OWNERS = {
     "Michaël Vasseur": {
-        "slack_id": "UPUFD3AKH",
+        "slack_id": "U02JH87UQQP",  # Tyler covering while Michaël OOO — restore to UPUFD3AKH when back
         "first_name": "Michaël",
-        "skip": True,  # OOO week of Apr 30 — remove when back
     },
     "Willow Turano": {
         "slack_id": "UNWKXTDDL",
