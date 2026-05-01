@@ -322,11 +322,6 @@ def cron_test():
             raw     = fetch_open_tickets(owner_name)
             tickets = process_tickets(raw)
 
-            _send(channel, [{
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": f"*🧪 TEST — {owner_name}'s digest ({len(tickets)} tickets)*"}
-            }])
-
             if not tickets:
                 _send(channel, [{
                     "type": "section",
