@@ -526,7 +526,7 @@
         </div>
         <div class="block-kit" id="card-opening-1">
           <div class="bk-header">
-            <div class="bk-header-text">Good morning Michaël 👋</div>
+            <div class="bk-header-text">Afternoon, Michaël 👋</div>
           </div>
           <div class="bk-section">
             You have <strong>8</strong> open tickets to review today.
@@ -656,6 +656,7 @@
   <button class="demo-btn" id="path-btn-C" onclick="setPath('C')">C · No → DM</button>
   <button class="demo-btn" id="path-btn-D" onclick="setPath('D')">D · No → Skip</button>
   <button class="demo-btn" id="path-btn-E" onclick="setPath('E')">E · One-tap</button>
+  <button class="demo-btn" id="path-btn-F" onclick="setPath('F')">F · Premium</button>
   <button class="demo-btn" onclick="resetDemo()" style="border-color:#e01e5a;color:#e01e5a;">↺ Reset</button>
 </div>
 
@@ -727,7 +728,7 @@ function timeStr(offsetMin = 0) {
 // ── Demo path selector ─────────────────────────────────────────────────────
 function setPath(p) {
   _path = p;
-  ['A','B','C','D','E'].forEach(x => {
+  ['A','B','C','D','E','F'].forEach(x => {
     document.getElementById(`path-btn-${x}`).classList.toggle('active', x === p);
   });
   resetDemo();
@@ -741,14 +742,35 @@ function resetDemo() {
 
   const c1 = document.getElementById('card-opening-1');
   if (_path === 'E') {
-    // Swap card 1 for the one-tap card
     if (c1) { c1.className = 'block-kit'; c1.innerHTML = buildOneTapCardInner(); }
-  } else {
-    // Restore standard card 1
+  } else if (_path === 'F') {
+    // Premium ticket — same card structure, premium badge, no Solve with Claude later
     if (c1) {
       c1.className = 'block-kit';
       c1.innerHTML = `
-        <div class="bk-header"><div class="bk-header-text">Good morning Michaël 👋</div></div>
+        <div class="bk-header"><div class="bk-header-text">Afternoon, Michaël 👋</div></div>
+        <div class="bk-section">You have <strong>8</strong> open tickets to review today.</div>
+        <hr class="bk-divider">
+        <div class="bk-section">
+          <span class="priority-high">🔴</span>&nbsp; <strong>1 of 8</strong> &nbsp;·&nbsp; High Priority &nbsp;·&nbsp; SF Priority: <strong>Critical</strong> &nbsp;·&nbsp; <span style="background:#7c3aed;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;">⭐ Premium</span><br><br>
+          <span class="ticket-id">📋 Ticket-00864091</span><br>
+          <span class="ticket-line">🏢&nbsp; Acme Corp (Premium)</span><br>
+          <span class="ticket-line">💼&nbsp; Acme Corp - New Business &nbsp;·&nbsp; <em>Commit</em></span><br>
+          <span class="ticket-line">📅&nbsp; Open 3 days &nbsp;·&nbsp; ⚓&nbsp; APD: May 15, 2026 &nbsp;·&nbsp; 💰&nbsp; $42,000</span>
+        </div>
+        <hr class="bk-divider">
+        <div class="bk-section">Have you connected with the requester on this?</div>
+        <div class="bk-actions" id="actions-opening-1">
+          <button class="slack-btn slack-btn-primary" onclick="clickYes('1')">✅&nbsp; Yes</button>
+          <button class="slack-btn slack-btn-default" onclick="clickNo('1')">❌&nbsp; Not Yet</button>
+        </div>`;
+    }
+  } else {
+    // Standard card
+    if (c1) {
+      c1.className = 'block-kit';
+      c1.innerHTML = `
+        <div class="bk-header"><div class="bk-header-text">Afternoon, Michaël 👋</div></div>
         <div class="bk-section">You have <strong>8</strong> open tickets to review today.</div>
         <hr class="bk-divider">
         <div class="bk-section">
@@ -757,7 +779,6 @@ function resetDemo() {
           <span class="ticket-line">🏢&nbsp; Chris Bailey Inc</span><br>
           <span class="ticket-line">💼&nbsp; Chris Bailey Inc - New Business &nbsp;·&nbsp; <em>Commit</em></span><br>
           <span class="ticket-line">📅&nbsp; Open 9 days &nbsp;·&nbsp; <span style="color:#e8a23b;">⏰ Aging</span> &nbsp;·&nbsp; ⚓&nbsp; APD: Jun 1, 2026 &nbsp;·&nbsp; 💰&nbsp; $8,400</span>
-          <!-- 4 days = no staleness indicator -->
         </div>
         <hr class="bk-divider">
         <div class="bk-section">Have you connected with the requester on this?</div>
@@ -782,7 +803,7 @@ function resetDemo() {
 
 function buildOneTapCardInner() {
   return `
-    <div class="bk-header"><div class="bk-header-text">Good morning Michaël 👋</div></div>
+    <div class="bk-header"><div class="bk-header-text">Afternoon, Michaël 👋</div></div>
     <div class="bk-section">You have <strong>8</strong> open tickets to review today.</div>
     <hr class="bk-divider">
     <div class="bk-section">
@@ -833,6 +854,7 @@ function buildConnectedYes() {
           <div class="bk-actions" id="actions-connected-yes">
             <button class="slack-btn slack-btn-danger" onclick="clickClose()">🔒&nbsp; Close Ticket</button>
             <button class="slack-btn slack-btn-default" onclick="clickActive()">🔄&nbsp; Still Active</button>
+            ${_path !== 'F' ? '<button class="slack-btn slack-btn-default" onclick="clickSolveWithClaude()">🤖&nbsp; Solve with Claude</button>' : ''}
           </div>
         </div>
       </div>
@@ -845,6 +867,37 @@ function clickActive() {
 
 function clickClose() {
   document.getElementById('modal-close').classList.add('open');
+}
+
+function clickSolveWithClaude() {
+  disableActions('actions-connected-yes');
+  setTimeout(() => {
+    injectMessage('thread-1', buildSolveWithClaude(), '8:01');
+    scrollToBottom();
+  }, 300);
+}
+
+function buildSolveWithClaude() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit">
+          <div class="bk-section">🤖&nbsp; <strong>Solve with Claude</strong></div>
+          <div class="bk-section">Open a new Claude session and paste this prompt:<br><br>
+            <code style="display:block;background:#1a1a1a;color:#e8e8e8;padding:10px 14px;border-radius:6px;font-size:13px;margin-top:6px;">Solve Solution Engineer Ticket Ticket-00864090</code>
+          </div>
+          <div class="bk-context" style="color:#7a7a7a;font-size:12px;margin-top:8px;">
+            <em>Chris Bailey Inc · Chris Bailey Inc - New Business</em>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function clickOneTapActive() {
@@ -1006,6 +1059,7 @@ function buildNotYet() {
           <div class="bk-section">Want me to ping <strong>Mackenzie Matthews</strong> now to set up time?</div>
           <div class="bk-actions" id="actions-not-yet">
             <button class="slack-btn slack-btn-primary" onclick="clickDmSend()">📨&nbsp; Send them a DM</button>
+            ${_path !== 'F' ? '<button class="slack-btn slack-btn-default" onclick="clickSolveWithClaudeNotYet()">🤖&nbsp; Solve with Claude</button>' : ''}
             <button class="slack-btn slack-btn-default" onclick="clickDmSkip()">⏭️&nbsp; Skip for now</button>
           </div>
         </div>
@@ -1027,6 +1081,37 @@ function clickDmSend() {
 function clickDmSkip() {
   disableActions('actions-not-yet');
   setTimeout(() => { showTicket2(); }, 400);
+}
+
+function clickSolveWithClaudeNotYet() {
+  disableActions('actions-not-yet');
+  setTimeout(() => {
+    injectMessage('thread-1', buildSolveWithClaudeNotYet(), '8:01');
+    scrollToBottom();
+  }, 300);
+}
+
+function buildSolveWithClaudeNotYet() {
+  return `
+    <div class="msg-group">
+      <div class="bot-avatar">🎟</div>
+      <div class="msg-body">
+        <div class="msg-meta">
+          <span class="msg-sender">SE Tickets Bot</span>
+          <span class="bot-badge">APP</span>
+          <span class="msg-time">8:01 AM</span>
+        </div>
+        <div class="block-kit">
+          <div class="bk-section">🤖&nbsp; <strong>Solve with Claude</strong></div>
+          <div class="bk-section">Open a new Claude session and paste this prompt:<br><br>
+            <code style="display:block;background:#1a1a1a;color:#e8e8e8;padding:10px 14px;border-radius:6px;font-size:13px;margin-top:6px;">Solve Solution Engineer Ticket Ticket-00864090</code>
+          </div>
+          <div class="bk-context" style="color:#7a7a7a;font-size:12px;margin-top:8px;">
+            <em>Chris Bailey Inc · Chris Bailey Inc - New Business</em>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function buildDmSent() {

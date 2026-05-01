@@ -141,6 +141,7 @@ def block_opening(first_name: str, total: int, index: int, ticket: dict) -> list
     sf_pri   = ticket.get("sf_priority") or "—"
     anchor   = ticket.get("anchor_pay_date") or "—"
     stale    = ticket.get("staleness") or staleness_indicator(ticket.get("days_open", 0))
+    premium  = "  ·  ⭐ *Premium Account*" if ticket.get("is_premium") else ""
 
     return [
         header(f"Afternoon, {first_name} 👋"),
@@ -149,7 +150,7 @@ def block_opening(first_name: str, total: int, index: int, ticket: dict) -> list
 
         # Ticket card
         section(
-            f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}\n\n"
+            f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}{premium}\n\n"
             f"*📋 <https://gusto.lightning.force.com/lightning/r/Ticket__c/{ticket.get('sf_id', '')}/view|{ticket['id']}>*\n"
             f"🏢  {ticket['account']}\n"
             f"💼  {ticket['opp_name']}  ·  _{ticket['opp_stage']}_\n"
@@ -184,6 +185,7 @@ def block_one_tap_confirm(first_name: str, total: int, index: int, ticket: dict)
     sf_pri   = ticket.get("sf_priority") or "—"
     anchor   = ticket.get("anchor_pay_date") or "—"
     stale    = ticket.get("staleness") or staleness_indicator(ticket.get("days_open", 0))
+    premium  = "  ·  ⭐ *Premium Account*" if ticket.get("is_premium") else ""
     note     = ticket.get("last_chatter_note") or ""
     days_ago = ticket.get("days_since_chatter")
     ago_str  = f"{days_ago} day{'s' if days_ago != 1 else ''} ago" if days_ago else "recently"
@@ -194,7 +196,7 @@ def block_one_tap_confirm(first_name: str, total: int, index: int, ticket: dict)
     return [
         divider(),
         section(
-            f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}\n\n"
+            f"{priority_emoji(priority)}  *{index} of {total}*  ·  {p_label}  ·  SF Priority: {sf_pri}{premium}\n\n"
             f"*📋 <https://gusto.lightning.force.com/lightning/r/Ticket__c/{ticket.get('sf_id', '')}/view|{ticket['id']}>*\n"
             f"🏢  {ticket['account']}\n"
             f"💼  {ticket['opp_name']}  ·  _{ticket['opp_stage']}_\n"
@@ -230,14 +232,37 @@ def block_connected_yes(ticket: dict) -> list:
     Shown after SE clicks Yes — connected with requester.
     Asks for current status.
     """
+    btns = [
+        ("🔒  Close Ticket",  f"status_close__{ticket['id']}",  "danger"),
+        ("🔄  Still Active",  f"status_active__{ticket['id']}", None),
+    ]
+    if not ticket.get("is_premium"):
+        btns.append(("🤖  Solve with Claude", f"solve_claude__{ticket['id']}", None))
+
     return [
         section(f"Got it — you've connected on *{ticket['id']}*. ✅"),
         divider(),
         section("What's the current status?"),
-        buttons(
-            ("🔒  Close Ticket",  f"status_close__{ticket['id']}",  "danger"),
-            ("🔄  Still Active",  f"status_active__{ticket['id']}", None),
+        buttons(*btns),
+    ]
+
+
+def block_solve_with_claude(ticket: dict) -> list:
+    """
+    Shown after SE clicks Solve with Claude.
+    Displays the prompt to copy into a new Claude session.
+    """
+    prompt = f"Solve Solution Engineer Ticket {ticket['id']}"
+    return [
+        section(f"🤖  *Solve with Claude*"),
+        section(
+            f"Open a new Claude session and paste this prompt:\n\n"
+            f"```{prompt}```"
         ),
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": f"_{ticket['account']}  ·  {ticket['opp_name']}_"}]
+        }
     ]
 
 
@@ -351,8 +376,11 @@ def block_not_yet(ticket: dict) -> list:
             f"Want me to ping *{ticket['opp_owner']}* now to set up time?"
         ),
         buttons(
-            ("📨  Send them a DM", f"dm_send__{ticket['id']}", "primary"),
-            ("⏭️  Skip for now",   f"dm_skip__{ticket['id']}", None),
+            *[
+                ("📨  Send them a DM",    f"dm_send__{ticket['id']}",     "primary"),
+                *([("🤖  Solve with Claude", f"solve_claude__{ticket['id']}", None)] if not ticket.get("is_premium") else []),
+                ("⏭️  Skip for now",      f"dm_skip__{ticket['id']}",     None),
+            ]
         ),
     ]
 
