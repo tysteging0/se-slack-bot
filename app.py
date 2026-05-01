@@ -401,18 +401,16 @@ def cron_recap():
     """
     _verify_cron(request)
 
-    recap_date = date.today().strftime("%B %-d, %Y")
-    log        = load_action_log_today()
-    blocks     = build_recap_blocks(log, recap_date)
-
     try:
-        channel = _dm_channel(MANAGER["slack_id"])
+        recap_date = date.today().strftime("%B %-d, %Y")
+        log        = load_action_log_today()
+        blocks     = build_recap_blocks(log, recap_date)
+        channel    = _dm_channel(MANAGER["slack_id"])
         _send(channel, blocks, text=f"SE Digest Recap — {recap_date}")
-    except SlackApiError as e:
-        print(f"[ERROR] Recap DM failed: {e}")
-        return jsonify({"status": "error", "detail": str(e)}), 500
-
-    return jsonify({"status": "recap sent"})
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        print(f"[ERROR] Recap failed: {e}")
+        return jsonify({"status": "error"}), 500
 
 
 @app.post("/cron/nudge")
