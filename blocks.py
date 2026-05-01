@@ -20,11 +20,22 @@ Paste the output into https://app.slack.com/block-kit-builder to preview visuall
 
 import argparse
 import json
+import re
 from datetime import date
 from digest import staleness_indicator
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _clean_chatter(text: str) -> str:
+    """Strip HTML tags from Salesforce chatter body, leaving plain text."""
+    if not text:
+        return ""
+    # Remove all HTML tags (<p>, </p>, <br/>, etc.)
+    clean = re.sub(r"<[^>]+>", " ", text)
+    # Collapse multiple spaces / newlines
+    clean = re.sub(r"\s+", " ", clean).strip()
+    return clean
 
 def divider():
     return {"type": "divider"}
@@ -111,8 +122,8 @@ def _chatter_section(ticket: dict) -> list:
     Shows the latest post and, if a thread reply exists, the latest reply too.
     Returns an empty list if no chatter exists.
     """
-    note  = (ticket.get("last_chatter_note") or "").strip()
-    reply = (ticket.get("last_chatter_reply") or "").strip()
+    note  = _clean_chatter(ticket.get("last_chatter_note") or "")
+    reply = _clean_chatter(ticket.get("last_chatter_reply") or "")
     lcd   = ticket.get("last_chatter_date")
 
     if not note:
@@ -186,7 +197,7 @@ def block_one_tap_confirm(first_name: str, total: int, index: int, ticket: dict)
     anchor   = ticket.get("anchor_pay_date") or "—"
     stale    = ticket.get("staleness") or staleness_indicator(ticket.get("days_open", 0))
     premium  = "  ·  ⭐ *Premium Account*" if ticket.get("is_premium") else ""
-    note     = ticket.get("last_chatter_note") or ""
+    note     = _clean_chatter(ticket.get("last_chatter_note") or "")
     days_ago = ticket.get("days_since_chatter")
     ago_str  = f"{days_ago} day{'s' if days_ago != 1 else ''} ago" if days_ago else "recently"
 
