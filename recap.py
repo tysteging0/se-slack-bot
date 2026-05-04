@@ -173,9 +173,9 @@ def send_recap_dm(blocks: list, dry_run: bool = True) -> bool:
         print(json.dumps(payload, indent=2))
         return True
 
-    # In production: use Slack Web API chat.postMessage
-    # client.chat_postMessage(channel=MANAGER["slack_id"], blocks=blocks)
-    print(f"[TODO] Send DM to {MANAGER['slack_id']} — wire up Slack client here")
+    # Production send is handled by app.py via the Slack WebClient — this path
+    # is only reached when running recap.py standalone with --send.
+    print(f"[WARN] standalone --send not wired up; run via the Flask app instead")
     return False
 
 
