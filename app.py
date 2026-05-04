@@ -21,10 +21,7 @@ Environment variables required (set in Render dashboard):
   SLACK_BOT_TOKEN       xoxb-...
   SLACK_SIGNING_SECRET  from Slack App settings
   CRON_SECRET           any strong random string, matches cron-job.org header
-  SF_USERNAME
-  SF_PASSWORD
-  SF_SECURITY_TOKEN
-  SF_DOMAIN             "login" (production) or "test" (sandbox)
+  SFDX_AUTH_URL         force://clientId:clientSecret:refreshToken@instance (from sf org display --verbose)
 """
 
 import hashlib
@@ -306,15 +303,25 @@ def slack_actions():
     return "", 200
 
 
+_TEST_ALLOWED_SLACK_IDS: set[str] = {
+    MANAGER["slack_id"],
+    *(cfg["slack_id"] for cfg in OWNERS.values()),
+}
+
+
 @app.post("/cron/test")
 def cron_test():
     """
     Test endpoint — fetches real tickets for all SEs but sends everything
-    to a single target Slack ID (e.g. the manager). Protected by CRON_SECRET.
+    to a single target Slack ID. Only allowed for the manager and SEs listed
+    in OWNERS. Protected by CRON_SECRET.
     Usage: POST /cron/test  with header X-Cron-Secret and body {"slack_id": "U02JH87UQQP"}
     """
     _verify_cron(request)
-    target_slack_id = (request.get_json(silent=True) or {}).get("slack_id", MANAGER["slack_id"])
+    requested_id    = (request.get_json(silent=True) or {}).get("slack_id", MANAGER["slack_id"])
+    if requested_id not in _TEST_ALLOWED_SLACK_IDS:
+        abort(403)
+    target_slack_id = requested_id
     channel = _dm_channel(target_slack_id)
 
     for owner_name, cfg in OWNERS.items():
