@@ -28,7 +28,7 @@ SF_ORG = "gusto-prod"
 
 OWNERS = {
     "Michaël Vasseur": {
-        "slack_id": "U02JH87UQQP",  # Tyler covering while Michaël OOO — restore to UPUFD3AKH when back
+        "slack_id": "UPUFD3AKH",
         "first_name": "Michaël",
     },
     "Willow Turano": {
@@ -229,8 +229,12 @@ def fetch_open_tickets(owner_name: str) -> list:
     recent chatter post date on each ticket (used for skip logic).
     Returns raw Salesforce records.
     """
+    if owner_name not in OWNERS:
+        raise ValueError(f"Unknown owner: {owner_name!r}")
+
     # Rolling 18-month floor — no upper bound, works for any future ticket
     date_floor = (date.today() - timedelta(days=548)).strftime("%Y-%m-%dT00:00:00Z")
+    safe_name  = owner_name.replace("'", "\\'")
 
     query = f"""
         SELECT
@@ -254,7 +258,7 @@ def fetch_open_tickets(owner_name: str) -> list:
              LIMIT 1)
         FROM Ticket__c
         WHERE RecordType.Name = 'Solution Engineer Request'
-        AND Owner.Name = '{owner_name}'
+        AND Owner.Name = '{safe_name}'
         AND Status__c IN ('New', 'In Progress')
         AND CreatedDate >= {date_floor}
     """
