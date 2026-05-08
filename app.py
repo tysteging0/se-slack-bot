@@ -33,7 +33,7 @@ import urllib.parse
 from datetime import date, timedelta
 
 from pathlib import Path
-from flask import Flask, abort, jsonify, request, send_file
+from flask import Flask, abort, jsonify, request
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
@@ -273,15 +273,6 @@ def _handle_view_submission(payload: dict) -> None:
 def health():
     return jsonify({"status": "ok"})
 
-
-@app.get("/dashboard")
-def dashboard():
-    """Serves the latest refreshed SE ticket trends dashboard."""
-    session_dir = Path(os.environ.get("SESSION_DIR", "/data"))
-    live        = session_dir / "se-ticket-trends.html"
-    fallback    = Path(__file__).parent / "se-ticket-trends.html"
-    target      = live if live.exists() else fallback
-    return send_file(target, mimetype="text/html")
 
 
 @app.post("/slack/actions")
