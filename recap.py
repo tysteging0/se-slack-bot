@@ -14,11 +14,10 @@ Run to preview:
 
 import argparse
 import json
-import subprocess
 from datetime import date
 from typing import Optional
 
-from digest import OWNERS, SF_ORG, load_action_log_today
+from digest import OWNERS, load_action_log_today
 
 
 # ── Config ────────────────────────────────────────────────────────────────────

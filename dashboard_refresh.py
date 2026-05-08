@@ -30,10 +30,13 @@ OUTPUT_FILE = SESSION_DIR / "se-ticket-trends.html"
 PLACEHOLDER = "const PRELOADED = null; // INJECTED_BY_REFRESH_SCRIPT"
 
 FY_START = "2025-05-01T00:00:00Z"
-FY_END   = "2026-05-01T00:00:00Z"
+FY_END   = "2027-05-01T00:00:00Z"
 
 OWNERS    = ["Michaël Vasseur", "Willow Turano"]
-FQ_ORDER  = ["FQ1 FY2026", "FQ2 FY2026", "FQ3 FY2026", "FQ4 FY2026"]
+FQ_ORDER  = [
+    "FQ1 FY2026", "FQ2 FY2026", "FQ3 FY2026", "FQ4 FY2026",
+    "FQ1 FY2027", "FQ2 FY2027", "FQ3 FY2027", "FQ4 FY2027",
+]
 ROLE_ORDER = ["Gusto Pro", "Mid-Market", "Core Sales", "Biz Dev", "Other"]
 
 
@@ -57,6 +60,10 @@ def fiscal_quarter(d: date) -> str:
     if y == 2025 and m in (8, 9, 10):                            return "FQ2 FY2026"
     if (y == 2025 and m in (11, 12)) or (y == 2026 and m == 1): return "FQ3 FY2026"
     if y == 2026 and m in (2, 3, 4):                             return "FQ4 FY2026"
+    if y == 2026 and m in (5, 6, 7):                             return "FQ1 FY2027"
+    if y == 2026 and m in (8, 9, 10):                            return "FQ2 FY2027"
+    if (y == 2026 and m in (11, 12)) or (y == 2027 and m == 1): return "FQ3 FY2027"
+    if y == 2027 and m in (2, 3, 4):                             return "FQ4 FY2027"
     return "Other"
 
 

@@ -24,8 +24,6 @@ from sf_client import run_soql
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SF_ORG = "gusto-prod"
-
 OWNERS = {
     "Michaël Vasseur": {
         "slack_id": "UPUFD3AKH",
