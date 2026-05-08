@@ -60,7 +60,6 @@ from digest import (
     process_tickets,
     save_digest_tickets,
 )
-from dashboard_refresh import run_refresh
 from recap import MANAGER, build_recap_blocks
 from sf_writes import (
     handle_close_ticket,
@@ -455,20 +454,6 @@ def cron_nudge():
         print(f"[ERROR] Nudge route crashed: {e}")
         return jsonify({"status": "error"}), 500
 
-
-@app.post("/cron/refresh-dashboard")
-def cron_refresh_dashboard():
-    """
-    Called by cron-job.org at 9am, 12pm, and 5pm MT daily.
-    Pulls fresh data from Salesforce and publishes to share-some-html.
-    """
-    _verify_cron(request)
-    try:
-        summary = run_refresh()
-        return jsonify({"status": "ok", **summary})
-    except Exception as e:
-        print(f"[ERROR] Dashboard refresh failed: {e}")
-        return jsonify({"status": "error", "detail": str(e)}), 500
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
