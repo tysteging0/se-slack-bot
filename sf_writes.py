@@ -7,7 +7,7 @@ Step 4: Salesforce write specs for every digest path.
 Each function here is the canonical definition of exactly what gets
 written to Salesforce when an SE takes an action.  Functions are
 fully self-contained — they build the payload AND execute the write
-via sf CLI (same pattern as digest.py's run_soql).
+via sf_client (OAuth refresh token, no sf CLI required).
 
 All functions are safe to call in dry-run mode (pass dry_run=True)
 which prints the payload without writing to Salesforce.
